@@ -5,7 +5,7 @@ import { clampInt, fail, json, options, supabaseRest } from './_shared.js';
 // till den.
 const CATEGORIES = new Set([
   'konsert', 'teater', 'opera', 'dans', 'utställning', 'film',
-  'barn', 'föreläsning', 'litteratur', 'humor', 'festival', 'övrigt',
+  'barn', 'föreläsning', 'litteratur', 'humor', 'cirkus', 'festival', 'övrigt',
 ]);
 
 export const onRequestOptions = options;

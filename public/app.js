@@ -4,9 +4,13 @@
 // Därför inget session.js, ingen Supabase-klient i webbläsaren, och inget
 // tillstånd att hålla reda på utöver de filter som står i adressfältet.
 
+import { fetchEvents } from '/api.js';
 import { groupByDay, price, time, utdrag } from '/format.js';
 import { VERSION } from '/version.js';
 
+// Måste täcka alla värden CATEGORIES i lib/event.mjs kan ge, annars blir en
+// kategori osynlig i gränssnittet. tests/kategorier.test.mjs vaktar det.
+// Raden skrollar i sidled, så längden är inget problem.
 const KATEGORIER = [
   ['', 'Allt'],
   ['konsert', 'Konsert'],
@@ -16,8 +20,12 @@ const KATEGORIER = [
   ['utställning', 'Utställning'],
   ['film', 'Film'],
   ['barn', 'Barn'],
-  ['föreläsning', 'Föreläsning'],
+  ['cirkus', 'Cirkus'],
   ['humor', 'Humor'],
+  ['litteratur', 'Litteratur'],
+  ['föreläsning', 'Föreläsning'],
+  ['festival', 'Festival'],
+  ['övrigt', 'Övrigt'],
 ];
 
 const SIDSTORLEK = 60;
@@ -74,16 +82,10 @@ function init() {
 async function hämta({ ersätt, tyst = false } = {}) {
   if (!tyst) sätt(ersätt ? 'Hämtar …' : 'Hämtar fler …');
 
-  const fråga = new URLSearchParams({ limit: String(SIDSTORLEK) });
-  if (state.category) fråga.set('category', state.category);
-  if (state.q) fråga.set('q', state.q);
   if (ersätt) state.offset = 0;
-  if (state.offset) fråga.set('offset', String(state.offset));
 
   try {
-    const res = await fetch(`/api/events?${fråga}`);
-    if (!res.ok) throw new Error(`servern svarade ${res.status}`);
-    const data = await res.json();
+    const data = await fetchEvents(state, { limit: SIDSTORLEK });
 
     laddade = ersätt ? data.events : [...laddade, ...data.events];
     rita(laddade);

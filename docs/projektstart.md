@@ -66,6 +66,12 @@ Tre extraktionsnivåer, alla tre verifierade:
 1. **`ld+json` `@type: Event`.** Kulturhusets block bär namn, bild, beskrivning,
    genre, start, slut, plats, pris, biljettlänk och arrangör. `lib/event.mjs`
    läser det rakt av.
+
+   Två saker som bara syntes när adaptern byggdes: `price` kan vara strängen
+   `"175-350"` trots att schema.org säger tal, och sajtens `sitemap.xml` är till
+   80 % arkiv – 980 adresser varav merparten är gamla uppsättningar med
+   `"startDate": null`. Adaptern går därför via kategorisidorna, som är sajtens
+   egen bild av vad som spelas nu.
 2. **Inbäddad JSON.** Dramaten publicerar inget `ld+json` alls, men lägger hela
    sidan i `__NEXT_DATA__` – med tolv föreställningsdatum, speltid, medverkande
    och kategorier. Rikare än deras `ld+json` hade varit. Egen tolkning, men JSON
@@ -209,6 +215,14 @@ Fas 2 före fas 3 med flit: en lista med riktiga evenemang i är värd att titta
 - **Hur långt fram listan sträcker sig.** Utställningar pågår i månader,
   konserter är ett kvällsdatum. `upcoming_events` visar allt framåt utan tak,
   vilket gör att en utställning kan ligga kvar högst upp i veckor.
+
+- **Speltid kontra föreställning.** Kulturhuset publicerar en pjäs som *ett*
+  Event med `startDate` på premiären och `endDate` på derniären – "Amadeus"
+  blir en rad med 13 september, trots att den spelas till 8 november. En
+  konsert är däremot ett kvällsdatum. Listan blandar alltså två sorters rader
+  utan att säga vilken som är vilken. Att visa "spelas 13 sep – 8 nov" när
+  `ends_at` ligger mer än ett dygn efter `starts_at` skulle lösa det, och
+  datan finns redan. Inte byggt.
 
 ## 11. Uppsättning: fällor vi redan gått i
 

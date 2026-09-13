@@ -29,6 +29,8 @@ därför **inga npm-beroenden**, inget byggsteg, och deploy via GitHub → Cloud
 ```
 public/              Statisk frontend (Cloudflare Pages root)
   index.html/app.js    Listsidan: kommande evenemang, dag för dag
+  api.js               Samtalet med /api/events – skilt från app.js för att
+                       kunna testas; app.js rör document redan vid import
   format.js            Rena formateringsfunktioner – testbara utan webbläsare
 scanner/             Skannern. Körs av GitHub Actions, inte av webbläsaren
   run.mjs              Motorn: kör källorna isolerat, loggar till scan_runs
@@ -108,7 +110,8 @@ får innehålla `/rest/v1/`.
 - [x] `lib/event.mjs` – schema.org `Event` till en rad, med tidszonen uttolkad
 - [x] Publik listsida med kategorifilter och sökning
 - [x] RLS: alla läser, ingen skriver – bevisat med `db/rls-test.sql`
-- [ ] Fas 2: adapter för Kulturhuset Stadsteatern (`ld+json`, verifierad källa)
+- [x] Fas 2: adapter för Kulturhuset Stadsteatern – går via kategorisidorna,
+      inte sitemapen, som till 80 % är arkiv
 - [ ] Fas 4: adaptrar för Dramaten (`__NEXT_DATA__`) och Konserthuset (`og:`)
 - [ ] Fas 5: dubbletter mellan källor – `groupDuplicates` finns, används inte
 - [ ] Utred Operan, Fotografiska, Moderna Museet, Stockholm Live och Debaser.

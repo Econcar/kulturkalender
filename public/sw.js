@@ -12,6 +12,7 @@ const SHELL = [
   '/index.html',
   '/styles.css',
   '/app.js',
+  '/api.js',
   '/format.js',
   '/version.js',
   '/manifest.webmanifest',

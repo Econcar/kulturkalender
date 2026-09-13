@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import {
-  bestOffer, category, eventStatus, eventsFromHtml, imageUrl,
-  parseDateTime, placeAddress, placeName, toEvent,
+  bestOffer, category, eventNodes, eventStatus, eventsFromHtml, hasEventNode,
+  imageUrl, parseDateTime, parsePrices, placeAddress, placeName, toEvent,
 } from '../lib/event.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -141,6 +141,50 @@ test('gratis är ett pris, saknat pris är det inte', () => {
     min: 0, max: 0, currency: 'SEK', url: null,
   });
   assert.deepEqual(bestOffer(undefined), { min: null, max: null, currency: null, url: null });
+});
+
+test('ett prisintervall som sträng blir min och max', () => {
+  // Kulturhuset skriver "175-350" i price, trots att schema.org säger tal.
+  // Läser man det med parseFloat blir taket 175 och biljetten kostar dubbelt
+  // så mycket som listan lovar.
+  const offer = bestOffer({ price: '175-350', priceCurrency: 'SEK' });
+  assert.equal(offer.min, 175);
+  assert.equal(offer.max, 350);
+});
+
+test('tusentalsavgränsare är inte två priser', () => {
+  assert.deepEqual(parsePrices('1 275'), [1275]);
+  assert.deepEqual(parsePrices('1 275 kr'), [1275]);
+  assert.deepEqual(parsePrices('175-350'), [175, 350]);
+  assert.deepEqual(parsePrices('175–350'), [175, 350]); // tankstreck
+  assert.deepEqual(parsePrices('285'), [285]);
+  assert.deepEqual(parsePrices(285), [285]);
+  assert.deepEqual(parsePrices('99,50'), [99.5]);
+  assert.deepEqual(parsePrices(''), []);
+  assert.deepEqual(parsePrices(null), []);
+});
+
+test('tomt pris ger inget pris, inte noll', () => {
+  // Arkivsidorna skriver "price": "". Blir det 0 står det "Fri entré" i listan
+  // på en föreställning som kostar pengar.
+  const offer = bestOffer({ price: '', priceCurrency: 'SEK', url: '' });
+  assert.equal(offer.min, null);
+  assert.equal(offer.max, null);
+});
+
+test('hasEventNode skiljer arkivsida från formatändring', () => {
+  // Arkivsidan har ett fullgott Event-block utan datum. En sida utan block är
+  // något annat, och adaptern larmar bara på det andra.
+  assert.equal(hasEventNode(fixture('kulturhuset-arkiv.html')), true);
+  assert.equal(eventsFromHtml(fixture('kulturhuset-arkiv.html')).length, 0);
+
+  assert.equal(hasEventNode('<html><body>inget</body></html>'), false);
+});
+
+test('arkivsidans tomma platsnamn faller tillbaka på adressen', () => {
+  // location.name är "" på arkivsidan. Tom sträng får inte bli scenens namn.
+  const [nod] = eventNodes(fixture('kulturhuset-arkiv.html'));
+  assert.equal(placeName(nod.location), 'Digitalt');
 });
 
 test('lowPrice och highPrice räknas med', () => {

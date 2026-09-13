@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<title>2 METER | Kulturhuset Stadsteatern</title>
+<!--
+  Riktig data från kulturhusetstadsteatern.se/teater/2-meter, hämtad 2026-09-13.
+
+  En arkivsida: uppsättningen spelades 2020 och ligger kvar med "startDate": null.
+  Sajtens sitemap är full av sådana här, vilket är skälet till att adaptern går
+  via kategorisidorna i stället. toEvent ska ge null för den – ett evenemang
+  utan tid går varken att visa eller sortera.
+
+  Notera också tomma strängar i location.name och offers.price. De får inte bli
+  "" i databasen, och inte 0 kr heller.
+-->
+<script type="application/ld+json">{
+    "@context": "https://schema.org",
+    "@type": "Event",
+    "genre": "Teater",
+    "name": "2 METER ",
+    "image": "https://kulturhusetstadsteatern.se/sites/default/files/styles/hero_full/public/2021-06/2%20METER_benke-bruset-liggande_press.jpg?h=620ec1cb&itok=PG6snv0-",
+    "description": "2 METER – en närgången* dokumentärserie om teaterkonst, * enligt folkhälsomyndighetens rekommendationer under coronapandemin sommaren 2020. ",
+    "keywords": "Teater, Digitalt, kulturhuset stadsteatern, 2 METER ",
+    "additionalType": "Teater",
+    "url": "https://kulturhusetstadsteatern.se/teater/2-meter",
+    "startDate": null,
+    "endDate": null,
+    "location": {
+        "@type": "Place",
+        "name": "",
+        "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "Digitalt",
+            "addressLocality": "Stockholm",
+            "addressCountry": "SE"
+        }
+    },
+    "offers": {
+        "@type": "Offer",
+        "url": "",
+        "price": "",
+        "priceCurrency": "SEK"
+    },
+    "eventStatus": "https://schema.org/EventScheduled",
+    "eventAttendanceMode": "https://schema.org/EventScheduled",
+    "organizer": {
+        "@type": "Organization",
+        "name": "Kulturhuset Stadsteatern",
+        "url": "https://www.kulturhusetstadsteatern.se"
+    }
+}</script>
+</head>
+<body>2 METER</body>
+</html>
