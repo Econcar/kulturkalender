@@ -10,8 +10,10 @@
   "scripts": {
     "check": "node scripts/check-syntax.mjs",
     "test": "npm run check && node --test \"tests/*.test.mjs\"",
+    "dev": "node scripts/preview.mjs",
     "scan": "node scanner/run.mjs",
     "scan:dry": "node scanner/run.mjs --dry-run",
+    "scan:local": "node scanner/run.mjs --out data/events.json",
     "predeploy": "node scripts/predeploy.mjs"
   }
 }

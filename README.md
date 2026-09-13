@@ -35,25 +35,47 @@ public/              Statisk frontend (Cloudflare Pages root)
 scanner/             Skannern. Körs av GitHub Actions, inte av webbläsaren
   run.mjs              Motorn: kör källorna isolerat, loggar till scan_runs
   sources/             En adapter per scen. Börja i _template.mjs
-  lib/                 Dubblettfilter och Supabase-skrivning med service-nyckeln
+  lib/                 Dubblettfilter, Supabase-skrivning med service-nyckeln,
+                       och filesink.mjs som skriver till JSON i stället
 functions/api/       Pages Functions, en fil per endpoint
 lib/                 Delad logik: ld+json, HTTP, Event-tolkning, textstädning.
                      Inga Node-API:er – koden körs både i Node och på Workers
 db/                  SQL-schema för Supabase + RLS-testet
 tests/               node --test
-scripts/             Pre-deploy-spärr m.m.
+scripts/             Pre-deploy-spärr och den lokala utvecklingsservern
+data/                Lokal skannerutdata. Gitignorerad
 docs/                Projektdokumentation
 ```
 
 ## Kommandon
 
 ```bash
-npm test          # node --check på alla .js + node --test tests/
-npm run check     # bara syntaxkontroll
-npm run scan      # kör skannern mot Supabase
-npm run scan:dry  # kör skannern utan att skriva något
-npm run predeploy # pre-deploy-spärr (körs av pre-push-hooken)
+npm test           # node --check på alla .js + node --test tests/
+npm run check      # bara syntaxkontroll
+npm run scan:local # skanna till data/events.json (ingen databas behövs)
+npm run dev        # kör sidan lokalt på http://localhost:8788
+npm run scan       # kör skannern mot Supabase
+npm run scan:dry   # kör skannern utan att skriva något
+npm run predeploy  # pre-deploy-spärr (körs av pre-push-hooken)
 ```
+
+### Köra lokalt
+
+Sidan går att köra utan Supabase och utan Cloudflare-verktyg:
+
+```bash
+npm run scan:local   # hämtar från scenerna, skriver data/events.json
+npm run dev          # serverar public/ och /api/events ur den filen
+```
+
+`data/` är gitignorerad – det är hämtat från andras sajter, inte vårt att
+checka in, och alltid en körning bort.
+
+Den lokala servern är ett titthål, inte en simulering. Urvalet görs av
+[lib/upcoming.mjs](lib/upcoming.mjs) i JS i stället för av SQL-vyn, och det
+finns varken cache eller CORS-huvuden. Fälten är däremot desamma, och
+`tests/upcoming.test.mjs` läser kolumnlistan ur `db/schema.sql` och jämför –
+glider de isär faller testet.
 
 Installera pre-push-spärren en gång per klon:
 

@@ -4,6 +4,9 @@ node_modules/
 !.env.example
 
 # Skannerutdata / felsökningsdumpar
+# data/ är lokal skannerutdata från npm run scan:local – hämtad från andras
+# sajter, inte vår att checka in, och alltid en körning bort.
+data/
 scanner/.cache/
 tmp/
 *.local.json

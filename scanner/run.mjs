@@ -10,8 +10,15 @@
 import { selectSources } from './sources/index.mjs';
 import { dedupeBatch } from './lib/dedupe.mjs';
 import { createClient } from './lib/supabase.mjs';
+import { createFileClient } from './lib/filesink.mjs';
 
 const log = (...args) => console.log(...args);
+
+/** `--out data/events.json` skriver till fil i stället för till Supabase. */
+export function outPath(argv = process.argv) {
+  const i = argv.indexOf('--out');
+  return i !== -1 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : null;
+}
 
 export async function runScan({ sourceFilter = process.env.SCAN_SOURCES, client, sources: override } = {}) {
   const sources = override ?? selectSources(sourceFilter);
@@ -23,9 +30,11 @@ export async function runScan({ sourceFilter = process.env.SCAN_SOURCES, client,
     return { sources: [], totalUpserted: 0, failures: 0 };
   }
 
-  const db = client ?? createClient();
+  const fil = outPath();
+  const db = client ?? (fil ? createFileClient(fil) : createClient());
 
-  log(`Startar skanning av ${sources.length} källa/källor${db.dryRun ? ' (DRY RUN)' : ''}.`);
+  const läge = db.dryRun ? ' (DRY RUN)' : (db.path ? ` → ${db.path}` : '');
+  log(`Startar skanning av ${sources.length} källa/källor${läge}.`);
 
   const results = [];
   for (const source of sources) {

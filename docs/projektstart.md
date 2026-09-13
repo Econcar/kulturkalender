@@ -200,6 +200,12 @@ Fas 2 före fas 3 med flit: en lista med riktiga evenemang i är värd att titta
   tom vecka.
 - **Skanna en gång per dygn, inte oftare.** Program ändras i dagsskala. Tätare
   svep belastar scenernas sidor utan att göra listan bättre.
+- **Hela kedjan går att köra utan databas.** `npm run scan:local` skriver till
+  `data/events.json` och `npm run dev` serverar sidan ur den. Det finns för att
+  gränssnittsfel annars inte syns förrän Supabase och Cloudflare är uppsatta,
+  alltså långt efter att de gjordes. `lib/upcoming.mjs` är SQL-vyn uttryckt i
+  JS, och `tests/upcoming.test.mjs` läser kolumnlistan ur `db/schema.sql` och
+  kräver att de två har exakt samma fält. SQL:en är facit; JS:en är titthålet.
 
 ## 10. Öppna beslut
 

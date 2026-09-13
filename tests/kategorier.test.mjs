@@ -55,6 +55,40 @@ test('category() returnerar bara kategorier som finns i listan', () => {
   }
 });
 
+test('scenens namn i keywords får inte avgöra kategorin', () => {
+  // Kulturhuset skriver "kulturhuset stadsteatern" i keywords på varenda sida,
+  // och "stadsteatern" innehåller "teater". Slogs fälten ihop blev 71 av 126
+  // rader teater – inklusive alla utställningar, all dans och all litteratur.
+  // Upptäckt först när riktig data låg i data/events.json.
+  const utställning = {
+    '@type': 'Event',
+    genre: 'Utställningar',
+    additionalType: 'Utställningar',
+    keywords: 'Utställningar, Sergels torg, kulturhuset stadsteatern, Omfamnad',
+  };
+  assert.equal(category(utställning), 'utställning');
+
+  const dans = {
+    '@type': 'Event',
+    genre: 'Dans',
+    keywords: 'Dans, Sergels torg, kulturhuset stadsteatern, Cullberg',
+  };
+  assert.equal(category(dans), 'dans');
+
+  const litteratur = {
+    '@type': 'Event',
+    genre: 'Litteratur',
+    keywords: 'Litteratur, kulturhuset stadsteatern, Susanna Alakoski',
+  };
+  assert.equal(category(litteratur), 'litteratur');
+});
+
+test('keywords används bara när genre inte säger något', () => {
+  // Fältet är inte värdelöst – det är bara sist i tur och ordning.
+  assert.equal(category({ '@type': 'Event', keywords: 'Cirkus, nycirkus' }), 'cirkus');
+  assert.equal(category({ '@type': 'Event', genre: 'Höstens program', keywords: 'Dans' }), 'dans');
+});
+
 test('Kulturhusets genrer hamnar där en människa skulle lägga dem', () => {
   const förväntat = {
     Konserter: 'konsert',
