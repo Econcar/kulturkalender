@@ -1,178 +1,231 @@
-# Projektstart: Receptsamlingen
+# Projektstart: Kulturkalendern
 
-> Startdokument för det projekt som ersätter leasingskannern. Samma stack, ny domän.
-> Utkast 2026-07-27 – avsnitt 10 är beslut som ska fattas innan bygget börjar.
+> Startdokument för det projekt som ersätter receptboken. Samma stack, ny domän.
+> Utkast 2026-09-13 – avsnitt 10 är beslut som ska fattas innan bygget går vidare.
 
 ## 1. I en mening
 
-En webbtjänst där hushållet samlar sina matrecept, lagar efter dem i köket, och
-får ut en inköpslista för veckans rätter.
+En publik webbsida som samlar vad som händer på Stockholms scener – konserter,
+teater, utställningar och film – på ett ställe, med länk vidare till arrangören.
 
 ## 2. Mål och avgränsning
 
-- **Måste:** samla recept (importerade från länk eller inmatade för hand), kunna
-  söka och läsa dem medan man lagar mat, och slå ihop flera recept till en inköpslista.
-- **Vill:** veckoplanering, skalning av portioner, taggar och filtrering.
-- **Inte nu:** publik receptdelning, kommentarer, näringsberäkning, native app.
+- **Måste:** hämta evenemang automatiskt från arrangörernas egna sidor, visa dem
+  i datumordning, och gå att filtrera på kategori och söka i.
+- **Vill:** fler scener, dubblettsammanslagning mellan källor, kartvy.
+- **Inte nu:** inloggning, bevakningar, biljettförsäljning, recensioner,
+  användarinlagda evenemang.
 
-Samlingen är **hushållets**, inte världens. Det är en medveten avgränsning som tar bort
-moderering, publika profiler och missbruksskydd ur bygget – och gör upphovsrättsfrågan
-i avsnitt 6 hanterlig.
+Sidan är **publik och läsbar för alla**. Det är en medveten avgränsning som tar
+bort inloggning, RLS-policyer för skrivning, och hela modereringsfrågan ur
+bygget – ingen utomstående kan lägga in något, så det finns inget att moderera.
 
-## 3. Arkitektur (ärvd från leasingprojektet, beprövad)
+Priset för den avgränsningen är att allt innehåll måste komma från skannern.
+Går en källa sönder finns ingen människa som fyller i luckan.
 
-- **Frontend:** statisk PWA på **Cloudflare Pages**, inget byggsteg. Här är PWA:n inte
-  en gimmick: receptet ska gå att läsa i köket med skitiga händer, utan nät och utan
-  att skärmen släcks.
-- **Proxy:** **Cloudflare Pages Functions** i `functions/api/*.js`. Behövs för
-  receptimporten – webbläsaren kan inte hämta en receptsida direkt (CORS), så
-  `/api/import?url=…` hämtar och tolkar åt den.
-- **Databas & auth:** **Supabase** (Postgres + RLS + Google-inloggning). RLS är
-  huvudsaken här, inte en detalj: recept är hushållets privata data, till skillnad från
-  leasingannonserna som var global läsdata.
-- **Ingen skanner.** Det schemalagda GitHub Actions-jobbet försvinner. Import sker när
-  användaren klistrar in en länk, inte var sjätte timme.
+## 3. Arkitektur (ärvd, beprövad)
 
-Pages Functions kör på Workers, inte Node. Delad kod får därför bara använda
-webbstandarder (`fetch`, `URL`, `JSON`) – inga Node-moduler. Tolkningskoden vi
-återanvänder är ren sträng- och JSON-hantering och klarar det.
+- **Frontend:** statisk PWA på **Cloudflare Pages**, inget byggsteg.
+- **Skanner:** **GitHub Actions** på schema, en adapter per scen. Motorn är
+  leasingskannerns – samma problem, samma lösning.
+- **Proxy:** **Cloudflare Pages Functions**. `/api/events` läser ur Supabase med
+  anon-nyckeln, så nyckeln aldrig behöver ligga i webbläsaren.
+- **Databas:** **Supabase** (Postgres + RLS). Ingen auth.
 
-## 4. Det som följer med från leasingskannern
+Säkerhetsmodellen är omvänd mot receptbokens och värd att säga rakt ut: alla får
+läsa allt, ingen får skriva något. Skannern skriver med service-nyckeln, som går
+förbi RLS och bara finns i GitHub Actions-secrets. `db/rls-test.sql` bevisar det
+genom att försöka skriva som anon och kräva att bli nekad.
 
-| Fil | Vad den blir |
+**Frontenden talar inte med Supabase.** Det är en skillnad mot receptboken, där
+webbläsaren höll en egen klient. Här går allt genom `/api/events`, vilket betyder
+att `public/config.js` är borta och att anon-nyckeln inte längre är publicerad.
+Den ligger i Pages-miljön i stället.
+
+Pages Functions kör på Workers, inte Node. Delad kod i `lib/` får därför bara
+använda webbstandarder (`fetch`, `URL`, `JSON`, `Intl`) – inga Node-moduler.
+
+## 4. Källorna: undersökt, inte antaget
+
+Åtta scener testades 2026-09-13, på deras faktiska evenemangssidor och inte bara
+på startsidan. Resultatet styr hela bygget, så det står här i sin helhet.
+
+| Scen | Vad sidan bär | Nivå |
+| --- | --- | --- |
+| Kulturhuset Stadsteatern | Fullständig `ld+json` `@type: Event` | 1 |
+| Dramaten | `__NEXT_DATA__` med `performances[]` | 2 |
+| Konserthuset | Bara `og:`-taggar + datum i URL-slugen | 3 |
+| Operan, Fotografiska, Moderna Museet, Stockholm Live, Debaser | **Inte utrett** – bara listsidor nåddes | ? |
+
+**De fem sista är inte ett besked.** En listsida bär aldrig `Event`, inte hos
+Kulturhuset heller. De måste testas på en enskild evenemangssida innan någon
+säger något om dem.
+
+Tre extraktionsnivåer, alla tre verifierade:
+
+1. **`ld+json` `@type: Event`.** Kulturhusets block bär namn, bild, beskrivning,
+   genre, start, slut, plats, pris, biljettlänk och arrangör. `lib/event.mjs`
+   läser det rakt av.
+2. **Inbäddad JSON.** Dramaten publicerar inget `ld+json` alls, men lägger hela
+   sidan i `__NEXT_DATA__` – med tolv föreställningsdatum, speltid, medverkande
+   och kategorier. Rikare än deras `ld+json` hade varit. Egen tolkning, men JSON
+   och inte HTML.
+3. **`og:`-taggar och URL-mönster.** Konserthuset har varken `ld+json` eller
+   sitemap. Men `og:title` lyder `"Schumanns tredje symfoni 2026-09-16 kl 18.00"`
+   och slugen bär `20260916-1800`, vilket ger både en exakt tid och ett stabilt
+   `external_id`. Räcker till titel, tid, bild och länk. Inte till pris eller
+   beskrivning.
+
+**Slutsatsen:** källorna är ojämna, och en generisk skrapa räcker inte. Därför en
+adapter per scen, med samma kontrakt men egen tolkning – exakt det mönster
+leasingskannern hade. Adaptern ska säga vad den *inte* kan få fram hellre än att
+gissa.
+
+`robots.txt` kollades för alla tre: ingen förbjuder hämtning av programsidorna.
+Dramaten stänger `/en`, Konserthuset stänger `/episerver/cms`. Adaptrarna kallar
+ändå `isAllowedByRobots` före varje svep – reglerna kan ändras.
+
+## 5. Datamodell
+
+```
+venues (id, slug, name, url, address, lat, lng)
+
+events (
+  id, source, external_id, url,
+  title, description, image_url,
+  category, genre,
+  venue_id, venue_raw, address,
+  starts_at, ends_at,
+  price_min, price_max, currency, ticket_url,
+  status,                      -- scheduled | cancelled | postponed | …
+  raw,                         -- hela blocket källan publicerade
+  first_seen_at, last_seen_at, created_at, updated_at
+)
+unique (source, external_id)
+
+scan_runs (id, source, status, rows_found, rows_upserted, error, started_at, finished_at)
+```
+
+Tre principer ärvda rakt av:
+
+**`raw` sparas alltid**, även när tolkningen lyckas. Samma sak som `raw_text` i
+receptboken och `raw` i leasingens `listings`: parsern kan förbättras i efterhand
+utan att något skannas om, och när den har fel syns originalet bredvid.
+
+**`last_seen_at` i stället för radering.** Ett evenemang som slutar dyka upp hos
+källan är antingen inställt, slutsålt eller passerat – tre olika saker. Skannern
+raderar aldrig; raden slutar bara uppdateras och sidan avgör vad den visar.
+
+**`venue_raw` bredvid `venue_id`.** Kopplingen till en scen är en gissning som
+kan bli fel. Originalet ska gå att läsa när den gör det.
+
+## 6. Det som följde med från receptboken
+
+| Fil | Vad den blev |
 | --- | --- |
-| `scanner/sources/alleasing.mjs` → `extractProductLd` | Grunden för receptimporten. Byter `@type: Product` mot `@type: Recipe` |
-| `scanner/lib/normalize.mjs` | Mönstret, inte innehållet: rena funktioner som städar fritext, enhetstestade separat |
-| `scanner/lib/http.mjs` | Hämtning med timeout och retry |
-| `db/schema.sql` | RLS-uppsättningen, `security_invoker` på vyer, `touch_updated_at`-triggern |
-| `public/` | PWA-skalet: manifest, service worker, ikoner |
-| `scripts/`, `.githooks/`, `.github/workflows/ci.yml` | Syntaxkoll, pre-deploy-spärr, CI |
+| `lib/ldjson.mjs` | **Koden oförändrad**, bara filhuvudet omskrivet. Tredje domänen som läser den: Product → Recipe → Event |
+| `lib/http.mjs` | Timeout, retry, backoff, `isAllowedByRobots`. Bara `User-Agent` bytt |
+| `lib/recipe.mjs` → `lib/text.mjs` | Textstädarna lyfta ut och gjorda domänoberoende |
+| `db/schema.sql` | Mönstren: `touch_updated_at`, `security_invoker`, explicita cast |
+| `public/` | PWA-skalet, service workern, versionsmärkningen |
+| `scripts/`, `.githooks/`, CI | Oförändrade |
 
-Resten av `scanner/` – `pricing.mjs`, `dedupe.mjs`, adaptrarna, `run.mjs` – utgår.
+Och ur leasingskannern, tillbakaplockat ur git (`e152c5e^`): `scanner/run.mjs`,
+`dedupe.mjs`, `supabase.mjs`, adapterregistret och `scan.yml`.
 
-## 5. Datamodell (utkast)
+Att `ldjson.mjs` överlevt två pivoter utan en enda **kodändring** är det
+tydligaste beviset på att den är generisk på riktigt och inte bara till namnet.
+Enda som skrivits om i den är filhuvudet, som beskriver vad den läser.
 
-```
-households (id, name, created_at)
-household_members (household_id, user_id, role)     -- 'owner' | 'member'
+## 7. Upphovsrätt – och varför den ändrats
 
-recipes (
-  id, household_id, created_by,
-  title, source_url, source_name, image_url,
-  servings, total_time_min, instructions, notes,
-  source_ldjson,               -- hela blocket sajten publicerade
-  created_at, updated_at
-)
+Receptbokens resonemang gick så här: en ingredienslista är en faktauppräkning,
+tillagningstexten är skyddad, men kopior för hushållets eget bruk är en annan sak
+än publicering. Leasingdata var rena faktauppgifter och gick helt fri.
 
-recipe_ingredients (
-  id, recipe_id, position,
-  raw_text,                    -- "2 dl vispgrädde" – alltid sparad
-  quantity, unit, note         -- ingredient_id tillkommer i fas 4
-)
+**Det här projektet är varken.** En publik sida som återger arrangörernas egna
+beskrivningstexter publicerar någon annans copy för allmänheten. Skillnaden mot
+de två föregående projekten är verklig och måste hanteras i koden, inte i en
+avsiktsförklaring.
 
-ingredients (id, canonical_name, category)          -- "grädde", "mejeri"
+Hållningen:
 
-tags (id, household_id, name)
-recipe_tags (recipe_id, tag_id)
+- **Titel, datum, tid, plats och pris är fakta.** De återges rakt av.
+- **Beskrivningen återges som utdrag, aldrig i sin helhet.** `utdrag()` i
+  `public/format.js` kapar vid ~180 tecken, och listan visar tre rader.
+- **Varje evenemang länkar till arrangören**, och länken går i första hand till
+  deras biljettsida.
+- **Sidfoten säger var uppgifterna kommer ifrån.**
+- **Bilderna hotlänkas till källan** och sparas inte hos oss. Försvinner bilden
+  krymper kortet i stället för att visa en trasig ikon – samma beslut som
+  receptboken tog, av samma skäl plus ett upphovsrättsligt.
 
-meal_plan (id, household_id, date, recipe_id, servings)
-shopping_list_items (id, household_id, ingredient_id, quantity, unit, checked, source)
-```
-
-**`raw_text` sparas alltid**, även när tolkningen lyckas. Samma princip som `raw`-kolumnen
-i `listings`: tolkningen kan förbättras i efterhand utan att något behöver importeras om,
-och när parsern har fel syns originalet.
-
-## 6. Import: ld+json är nyckeln
-
-Svenska receptsajter (ICA, Coop, Arla, Recept.se, Köket.se) publicerar
-`<script type="application/ld+json">` med `@type: Recipe` enligt schema.org:
-`name`, `recipeIngredient[]`, `recipeInstructions[]`, `recipeYield`, `totalTime`, `image`.
-
-Det är samma teknik vi redan använder mot alleasing, och det gör importen både
-robustare och snällare än HTML-skrapning. Faller den bort får användaren mata in för hand –
-ingen halvtolkad soppa.
-
-**Upphovsrätt, kort och ärligt:** en ingredienslista är i praktiken en fakta­uppräkning,
-men den skrivna tillagningstexten är skyddad. Att spara kopior för hushållets eget bruk är
-en sak; att publicera dem vidare är en annan. Därför: spara alltid `source_url` och länka
-tillbaka, och bygg aldrig om det här till en publik receptsajt utan att tänka om.
-
-## 7. Ingredienstolkning – projektets svåraste del
-
-`"2 dl vispgrädde"` → `{ quantity: 2, unit: 'dl', ingredient: 'vispgrädde' }`
-
-Svenska mått: `dl`, `msk`, `tsk`, `krm`, `g`, `kg`, `st`, `klyfta`, `förp`, `påse`, `burk`.
-Plus bråk (`½`, `1/2`), intervall (`2–3 dl`), och kvalificerare (`ca`, `finhackad`,
-`riven`, `efter smak`).
-
-Det här är `normalize.mjs` om igen: rena funktioner, inga beroenden, tungt enhetstestade.
-
-**Sammanslagningen till inköpslista är svårare än tolkningen.** `2 dl` + `1 dl` går att
-addera. `2 dl grädde` + `1 paket grädde` gör det inte. Regeln blir: slå bara ihop när
-enheten är identisk eller konverterbar, och lista resten som separata rader. Hellre två
-rader "grädde" än en felaktig summa som gör att man står i butiken och gissar.
-
-Två kända begränsningar att skriva in redan nu:
-
-- **Skalning av portioner är inte linjär.** Kryddor, salt och tillagningstid följer inte
-  antalet portioner. Skala mängderna, men flagga att det är en approximation.
-- **Samma vara har många namn.** "vispgrädde", "grädde 40 %", "matlagningsgrädde".
-  `ingredients`-tabellen med kanoniska namn är till för det, men den behöver fyllas på
-  efterhand – automatik löser det inte.
+Skulle någon scen be oss sluta är det rimliga svaret att ta bort dem, inte att
+argumentera. En adapter är en fil och en rad i `index.mjs`.
 
 ## 8. Faser
 
-1. **Schema + inloggning + hushåll.** Google-auth, `households`, RLS som faktiskt testas:
-   en användare i ett hushåll ska inte se ett annat hushålls recept.
-2. **Import och manuell inmatning.** `/api/import`, ld+json-tolkning, formulär.
-   Ingredienser sparas som `raw_text` – ingen tolkning ännu.
-3. **Kökläget.** Sök, läsvänlig receptvy, offline via service worker, wake lock.
-   Här kommer första verkliga nyttan.
-4. **Ingredienstolkning.** `raw_text` → mängd, enhet, vara. Går att köra om på befintliga
-   recept eftersom originalet finns kvar.
-5. **Veckoplan och inköpslista.** Sammanslagning, gruppering, avbockning.
-6. **Inbjudan till hushållet.** Dela samlingen med familjen.
+1. **Pivoten.** Receptdomänen bort, skannerstommen tillbaka, nytt schema, ny
+   listsida. Sidan står tom men hel. ← *klar*
+2. **Kulturhuset.** Första adaptern. Nivå 1, minst kod, bevisar hela kedjan från
+   hämtning till rad på sidan.
+3. **Listsidan på riktigt.** Datumfilter, paginering, tom-tillstånd som säger
+   något vettigt.
+4. **Dramaten och Konserthuset.** Bevisar att adaptermönstret bär nivå 2 och 3.
+5. **Dubbletter mellan källor.** `groupDuplicates` finns; sidan använder den inte
+   ännu.
+6. **Fler scener.** Börja med att faktiskt utreda de fem från avsnitt 4.
 
-Fas 3 före fas 4 med flit: en sökbar receptsamling är användbar redan innan en enda
-ingrediens är tolkad.
+Fas 2 före fas 3 med flit: en lista med riktiga evenemang i är värd att titta på
+även utan filter, medan ett filter över en tom databas inte går att bedöma.
 
 ## 9. Kvalitet & drift
 
-- Enhetstester på ren logik: ingredienstolkning, sammanslagning, portionsskalning.
+- Enhetstester på ren logik: `lib/event.mjs`, `dedupe.mjs`, `public/format.js`.
 - Pre-deploy-spärr (`node --check` + `node --test`) före push.
-- **RLS ska testas, inte antas.** Det är den enda mekanism som håller isär hushållen.
-- Importen är skör på samma sätt som skrapning var: en sajt kan sluta publicera ld+json
-  när som helst. Misslyckad import ska säga det rakt ut och erbjuda manuell inmatning.
+- **RLS ska testas, inte antas.** `db/rls-test.sql` försöker skriva som anon och
+  kräver att bli nekad. Anon-nyckeln ligger i Pages-miljön, men den läcker förr
+  eller senare – det enda som står mellan den och databasen är att det inte finns
+  någon skrivpolicy.
+- **Skanningen är skör per definition.** En scen kan lägga om sin sida när som
+  helst. `scan_runs` loggar varje körning per källa, och `run.mjs` isolerar
+  källorna så att en trasig aldrig fäller jobbet. En källa som plötsligt ger noll
+  rader loggas som `empty` med en varning – det är oftast ett formatbyte, inte en
+  tom vecka.
+- **Skanna en gång per dygn, inte oftare.** Program ändras i dagsskala. Tätare
+  svep belastar scenernas sidor utan att göra listan bättre.
 
 ## 10. Öppna beslut
 
-- ~~**Namn på projektet.**~~ Avgjort: `receptbok`. Repot är omdöpt.
-- ~~**Bilder:**~~ Avgjort: länk till källan. Gratis, upphovsrättsligt enklare, och
-  försvinner bilden krymper kortet i stället för att visa en trasig ikon. Blir det
-  ett problem i praktiken är Supabase Storage kvar som möjlighet.
-- ~~**Offline:**~~ Avgjort: bara läsa. Redigering offline hade krävt konflikthantering –
-  två personer som ändrar samma recept utan nät – och det är ett gränsfall i ett hushåll.
-  Recepten sparas lokalt vid varje lyckad hämtning och visas därifrån när nätet saknas.
-- **Inköpslistan:** gruppera per butiksavdelning (mejeri, grönt, torrvaror)? Kräver att
-  `ingredients.category` fylls i noggrant.
-- ~~**Hushållsinbjudan:**~~ Avgjort: delbar länk. En inmatad adress kräver att man vet
-  exakt vilket Google-konto den andra loggar in med, och gissar man fel händer ingenting
-  alls – ett tyst fel är sämre än ett synligt. Länken bär i stället tre spärrar:
-  engångsbruk, sju dagars giltighet, och bara ägare får skapa den.
+- **Namnet.** `kulturkalender` är valt som arbetsnamn i `package.json` och
+  dokumentationen. Repot heter fortfarande `receptbok` och adressen är
+  `receptbok.pages.dev`. Båda behöver döpas om – i GitHub och i Cloudflare, inte
+  i koden.
+- **Supabase.** `db/drop-receptbok.sql` finns men är inte körd. Receptbokens
+  tabeller ligger kvar i projektet. **Exportera recepten först** – de är inmatade
+  för hand och går inte att skanna fram igen.
+- **Geografi.** `venues.lat/lng` finns i schemat men fylls inte av något. Kartvy
+  eller "nära mig" är inte beslutat, kolumnerna är bara billiga att ha.
+- **Hur långt fram listan sträcker sig.** Utställningar pågår i månader,
+  konserter är ett kvällsdatum. `upcoming_events` visar allt framåt utan tak,
+  vilket gör att en utställning kan ligga kvar högst upp i veckor.
 
 ## 11. Uppsättning: fällor vi redan gått i
 
-Från leasingprojektets uppsättning 2026-07-26/27. Läs det här **före** nästa uppsättning.
+Från leasing- och receptprojektens uppsättningar. Läs **före** nästa uppsättning.
 
-1. **Supabases nya `sb_secret_`-nycklar fungerade inte** mot Data API:t – allt gav 401 med
-   tom svarskropp. Legacy `service_role` (`eyJ…`) fungerade direkt. Börja där.
-2. **`SUPABASE_URL` ska vara enbart roten**, `https://<ref>.supabase.co`, utan `/rest/v1/`.
-   Koden lägger till sökvägen. GitHub maskerar hela secret-värdet i loggen, så ett fel här
-   syns inte – felsök genom att testa nyckeln lokalt med `Invoke-WebRequest` först.
-3. **`percentile_cont` returnerar `double precision`** även för `numeric`-kolumner, vilket
-   kraschar `round(…, 1)`. Casta i vyn. Gäller varje projekt som räknar medianer i SQL.
-4. **Google Drive låser `.git`** mitt under operationer. Vid `could not lock config file`:
-   ta bort `.git/*.lock` när ingen git-process kör.
-5. **Verifiera i molnet tidigt.** Kör en `workflow_dispatch` innan något byggs vidare på –
-   moln-IP och lokal uppkoppling beter sig olika.
+1. **Supabases nya `sb_secret_`-nycklar fungerade inte** mot Data API:t – allt gav
+   401 med tom svarskropp. Legacy `service_role` (`eyJ…`) fungerade direkt.
+2. **`SUPABASE_URL` ska vara enbart roten**, `https://<ref>.supabase.co`, utan
+   `/rest/v1/`. Koden lägger till sökvägen.
+3. **Explicita cast i räknande vyer.** `percentile_cont` returnerar
+   `double precision` även för `numeric`, och `date_part` likaså – `round(…, 1)`
+   kraschar på båda. `upcoming_events.days_until` castar därför uttryckligen.
+4. **Google Drive låser `.git`** mitt under operationer. Vid
+   `could not lock config file`: ta bort `.git/*.lock` när ingen git-process kör.
+5. **Verifiera i molnet tidigt.** Kör en `workflow_dispatch` innan något byggs
+   vidare på – moln-IP och lokal uppkoppling beter sig olika mot andras sajter.
+   Det gäller dubbelt här: en scen som svarar från din hemuppkoppling kan blocka
+   GitHubs IP-intervall.
+6. **`npm run scan:dry` tar en flagga, inte en miljövariabel.** `DRY_RUN=1 node …`
+   är inte giltig syntax i npm-scripts på Windows, där npm kör genom `cmd`.

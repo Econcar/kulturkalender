@@ -44,7 +44,7 @@ function node(args) {
  * nyckelnamn i frontendfiler.
  */
 async function checkSecrets() {
-  const files = ['public/config.js', 'public/app.js', 'public/sw.js', 'public/index.html'];
+  const files = ['public/app.js', 'public/format.js', 'public/sw.js', 'public/index.html'];
   const problems = [];
 
   for (const file of files) {

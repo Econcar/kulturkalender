@@ -1,7 +1,7 @@
 {
-  "name": "Receptbok",
-  "short_name": "Recept",
-  "description": "Hushållets receptsamling – laga efter dem, handla till dem.",
+  "name": "Kulturkalendern Stockholm",
+  "short_name": "Kulturkalendern",
+  "description": "Vad som händer på Stockholms scener – konserter, teater, utställningar och film.",
   "lang": "sv-SE",
   "start_url": "/",
   "scope": "/",

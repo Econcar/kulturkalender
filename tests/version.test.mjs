@@ -23,25 +23,36 @@ test('versionen ser ut som en version', () => {
   assert.match(VERSION, /^v\d+$/);
 });
 
-test('varje sida hämtas av service workern', () => {
-  // En sida som inte ligger i skalet fungerar inte utan nät, och det märks
-  // inte förrän man står i köket utan täckning.
-  const sw = läs('public/sw.js');
-
-  for (const sida of ['/', '/nytt', '/veckan']) {
-    assert.ok(sw.includes(`'${sida}'`), `${sida} saknas i sw.js SHELL`);
-  }
-});
-
-test('varje modul sidorna importerar ligger i skalet', () => {
+test('varje modul sidan importerar ligger i skalet', () => {
+  // En modul som saknas i skalet fungerar inte utan nät, och det märks inte
+  // förrän någon står i tunnelbanan och sidan är tom.
   const sw = läs('public/sw.js');
   const moduler = new Set();
 
-  for (const sida of ['public/app.js', 'public/nytt.js', 'public/veckan.js', 'public/session.js']) {
-    for (const m of läs(sida).matchAll(/from '(\/[\w.-]+\.js)'/g)) moduler.add(m[1]);
-  }
+  for (const m of läs('public/app.js').matchAll(/from '(\/[\w.-]+\.js)'/g)) moduler.add(m[1]);
 
+  assert.ok(moduler.size > 0, 'hittade inga importer att kontrollera');
   for (const modul of moduler) {
     assert.ok(sw.includes(`'${modul}'`), `${modul} importeras men saknas i sw.js SHELL`);
+  }
+});
+
+test('skalet pekar inte på filer som inte finns', () => {
+  // Receptbokens sidor låg kvar i SHELL långt efter att de raderats. Att
+  // cache.add() tar en adress i taget gör att ett sådant fel inte syns –
+  // installationen lyckas ändå, med ett hål i skalet.
+  const sw = läs('public/sw.js');
+  const shell = /const SHELL = \[([\s\S]*?)\];/.exec(sw);
+  assert.ok(shell, 'SHELL hittades inte i sw.js');
+
+  const adresser = [...shell[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  const undantag = new Set(['/', '/index.html']); // rutter, inte filnamn
+
+  for (const adress of adresser) {
+    if (undantag.has(adress)) continue;
+    assert.doesNotThrow(
+      () => läs(join('public', adress)),
+      `${adress} står i SHELL men finns inte i public/`,
+    );
   }
 });

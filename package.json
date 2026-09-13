@@ -1,8 +1,8 @@
 {
-  "name": "receptbok",
+  "name": "kulturkalender",
   "version": "0.1.0",
   "private": true,
-  "description": "Hushållets receptsamling: importera, laga efter, och handla till.",
+  "description": "Vad som händer på Stockholms scener, samlat på ett ställe.",
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -10,6 +10,8 @@
   "scripts": {
     "check": "node scripts/check-syntax.mjs",
     "test": "npm run check && node --test \"tests/*.test.mjs\"",
+    "scan": "node scanner/run.mjs",
+    "scan:dry": "node scanner/run.mjs --dry-run",
     "predeploy": "node scripts/predeploy.mjs"
   }
 }

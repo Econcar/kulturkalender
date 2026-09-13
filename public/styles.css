@@ -1,3 +1,7 @@
+/* Kulturkalendern. Samma färgspråk som receptboken hade – mörkt, tyst, och
+   byggt för att läsas på en telefon i rörelse. Inga beroenden, ingen
+   byggkedja: filen laddas som den är. */
+
 :root {
   --bg: #0f172a;
   --panel: #1e293b;
@@ -19,486 +23,173 @@ body {
   font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
-.topbar { padding: 1.5rem 0 1rem; }
+main { max-width: 46rem; margin: 0 auto; }
+
+.topbar {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1.5rem 0 1rem;
+}
 .topbar h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.02em; }
 .tagline { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.9rem; }
 
-.account {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.status { margin: 1rem 0 0.5rem; color: var(--muted); font-size: 0.9rem; }
+.status { margin: 1rem 0 0.5rem; color: var(--muted); font-size: 0.85rem; }
 .status[data-tone="error"] { color: #fca5a5; }
 .status[data-tone="warn"] { color: #fcd34d; }
-.status[data-tone="ok"] { color: var(--good); }
+.status[data-tone="ok"] { color: var(--muted); }
 
-.panel {
-  padding: 1.25rem;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-}
-
-.panel h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
-.panel p { margin: 0 0 1rem; color: var(--muted); font-size: 0.9rem; }
-.panel p:last-child { margin-bottom: 0; }
 .muted { color: var(--muted); }
-
-.form { display: grid; gap: 0.5rem; justify-items: start; }
-
-.form label {
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-}
-
-.form input,
-.form textarea {
-  width: 100%;
-  max-width: 34rem;
-  padding: 0.5rem 0.6rem;
-  font: inherit;
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-
-.form textarea { resize: vertical; line-height: 1.5; }
-.form input[type="number"] { max-width: 8rem; }
-
-.row { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
-.row span { display: grid; gap: 0.25rem; }
-
-.button {
-  padding: 0.55rem 1rem;
-  font: inherit;
-  font-weight: 600;
-  color: var(--bg);
-  background: var(--accent);
-  border: 0;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.button:hover { filter: brightness(1.1); }
-
-.linkbutton {
-  padding: 0;
-  font: inherit;
-  color: var(--accent);
-  background: none;
-  border: 0;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.form input:focus-visible,
-.button:focus-visible,
-.linkbutton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-.libraryhead {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
-
-.libraryhead h2 { margin: 0; font-size: 1.25rem; }
-.libraryhead p { margin: 0.2rem 0 0; font-size: 0.9rem; }
-.libraryhead a.button { text-decoration: none; }
 
 .sr-only {
   position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
   overflow: hidden;
-  clip-path: inset(50%);
+  clip: rect(0 0 0 0);
   white-space: nowrap;
+  border: 0;
 }
+
+/* --- Sök och filter ------------------------------------------------------ */
 
 .search {
   width: 100%;
-  margin-bottom: 0.75rem;
-  padding: 0.6rem 0.75rem;
-  font: inherit;
+  padding: 0.7rem 0.9rem;
+  font-size: 1rem;
   color: var(--text);
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 10px;
 }
-
 .search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
+.chips {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0.75rem 0 0;
+  padding-bottom: 0.35rem;
+  overflow-x: auto;
+  /* Filterraden får skrolla i sidled i stället för att radbryta. En rad som
+     växer till tre flyttar listan nedanför utanför skärmen på en telefon. */
+  scrollbar-width: none;
+}
+.chips::-webkit-scrollbar { display: none; }
 
 .chip {
-  padding: 0.3rem 0.75rem;
-  font: inherit;
+  flex: 0 0 auto;
+  padding: 0.35rem 0.8rem;
   font-size: 0.85rem;
-  color: var(--text);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  cursor: pointer;
-  text-transform: capitalize;
-}
-
-.chip:hover { border-color: var(--accent); }
-.chip[data-active="true"] { color: var(--bg); background: var(--accent); border-color: var(--accent); }
-.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-.results {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-}
-
-.empty { grid-column: 1 / -1; color: var(--muted); font-size: 0.9rem; }
-
-.thumb {
-  width: 100%;
-  aspect-ratio: 3 / 2;
-  object-fit: cover;
-  border-radius: 8px;
-  background: var(--bg);
-}
-
-/* Ett öppnat recept läses i köket och ska få hela bredden. */
-.card:has(details[open]) { grid-column: 1 / -1; }
-
-.tagbar { margin: 0.6rem 0 0; gap: 0.3rem; }
-
-.chip-liten { padding: 0.15rem 0.55rem; font-size: 0.78rem; }
-
-/* Ovalda kategorier tonas ner: de är valbara, inte satta. Utan skillnaden ser
-   receptet ut att tillhöra tolv kategorier i stället för två. */
-.chip-liten:not([data-active="true"]) { color: var(--muted); opacity: 0.55; }
-.chip-liten:not([data-active="true"]):hover { opacity: 1; }
-
-.tagadmin {
-  list-style: none;
-  margin: 0.5rem 0 1rem;
-  padding: 0.75rem 1rem;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  display: grid;
-  gap: 0.15rem;
-}
-
-.tagadmin li {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: baseline;
-  padding: 0.3rem 0;
-}
-
-.tagadmin .tag { flex: none; }
-.tagadmin .source { flex: 1; margin: 0; }
-.tagadmin form { flex: 1; gap: 0.6rem; }
-
-.tagadmin input {
-  flex: 1;
-  min-width: 8rem;
-  max-width: 16rem;
-  padding: 0.3rem 0.55rem;
-  font: inherit;
-  font-size: 0.9rem;
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-}
-
-.nytagg { display: inline-flex; }
-
-.nytagg input {
-  width: 6rem;
-  padding: 0.15rem 0.55rem;
-  font: inherit;
-  font-size: 0.78rem;
-  color: var(--text);
+  color: var(--muted);
   background: transparent;
-  border: 1px dashed var(--line);
-  border-radius: 999px;
-}
-
-.nytagg input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-
-.tag {
-  padding: 0.1rem 0.5rem;
-  font-size: 0.75rem;
-  color: var(--muted);
   border: 1px solid var(--line);
   border-radius: 999px;
-  text-transform: capitalize;
-}
-
-.sectionhead { margin: 1.75rem 0 0.75rem; font-size: 1.1rem; }
-
-.invitepanel { margin-bottom: 1rem; }
-.invitepanel h3 { margin: 0 0 0.4rem; font-size: 1rem; }
-.invitepanel input { width: 100%; max-width: 28rem; padding: 0.5rem 0.6rem;
-                     font: inherit; font-size: 0.85rem; color: var(--muted);
-                     background: var(--bg); border: 1px solid var(--line);
-                     border-radius: 8px; }
-
-.week {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.5rem;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-}
-
-.day {
-  padding: 0.75rem 0.9rem;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-}
-
-.day[data-planned="true"] { border-color: var(--accent); }
-.day h3 { margin: 0 0 0.4rem; font-size: 0.8rem; text-transform: uppercase;
-          letter-spacing: 0.04em; color: var(--muted); }
-.day p { margin: 0; }
-.day ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
-.day li { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; }
-
-/* Planeringsraden i receptvyn: dag och knapp på samma rad. */
-.planera { display: flex; gap: 0.5rem; align-items: baseline; flex-wrap: wrap; margin: 0.4rem 0 0; }
-
-/* Extravarorna på en planerad rätt. Egen rad under rätten, indragen, så att
-   det syns att de hör till den och inte till dagen. */
-.day .extra {
-  flex-basis: 100%;
-  margin: 0.15rem 0 0 0.6rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem 0.6rem;
-  align-items: baseline;
-}
-
-.extravara {
-  display: inline-flex;
-  gap: 0.2rem;
-  align-items: baseline;
-  font-size: 0.9rem;
-  color: var(--muted);
-}
-
-.extraform { display: flex; gap: 0.4rem; align-items: baseline; flex-wrap: wrap; }
-.extraform input { width: 11rem; max-width: 100%; }
-
-.shopping { list-style: none; margin: 0; padding: 0; }
-
-.shopping li {
-  padding: 0.15rem 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.shopping li:last-child { border-bottom: 0; }
-
-.shopping label {
-  display: flex;
-  gap: 0.7rem;
-  align-items: baseline;
-  padding: 0.55rem 0.2rem;
-  font-size: 1.05rem;
   cursor: pointer;
 }
-
-.shopping input[type="checkbox"] {
-  flex: none;
-  width: 1.1rem;
-  height: 1.1rem;
-  accent-color: var(--accent);
-  cursor: pointer;
+.chip[aria-pressed="true"] {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
 }
 
-.shopping label:has(input:checked) { color: var(--muted); text-decoration: line-through; }
-.shopping .source { margin: -0.35rem 0 0.35rem 1.8rem; }
+/* --- Listan -------------------------------------------------------------- */
 
-.avdelning {
-  margin-top: 1.25rem;
-  padding: 0.35rem 0 0.2rem;
-  font-size: 0.78rem;
-  text-transform: uppercase;
+.results { margin: 0.5rem 0 0; padding: 0; list-style: none; }
+
+.dayheading {
+  margin: 1.5rem 0 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   letter-spacing: 0.06em;
-  color: var(--muted);
-  border-bottom: 1px solid var(--line);
+  text-transform: uppercase;
+  color: var(--accent);
 }
-
-.shopping li:first-child.avdelning { margin-top: 0; }
-
-.avdelningsval {
-  margin-left: auto;
-  padding: 0.2rem 0.3rem;
-  font: inherit;
-  font-size: 0.75rem;
-  color: var(--muted);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-}
-
-.avdelningsval:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.addrow { margin-top: 1rem; }
+.dayheading:first-child { margin-top: 0.75rem; }
 
 .card {
   display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  padding: 0.9rem 1rem;
+  gap: 0.9rem;
+  padding: 0.85rem;
+  margin-bottom: 0.6rem;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 12px;
 }
 
-.card-body { display: grid; gap: 0.35rem; }
-
-.card a { color: var(--accent); font-size: 0.85rem; }
-.card .source { margin: 0.35rem 0 0; color: var(--muted); font-size: 0.85rem; }
-
-.card summary {
-  font-weight: 600;
-  cursor: pointer;
-  list-style-position: outside;
-}
-
-.card summary::marker { color: var(--muted); }
-
-/* Köksläsbarhet: ett utfällt recept läses på armlängds avstånd, ofta med
-   mjöliga händer. Större text och träffytor som tål en tumme. */
-.ingredients, .steps { margin: 0.75rem 0; padding-left: 1.25rem; }
-.ingredients { list-style: none; padding-left: 0; }
-.ingredients li { border-bottom: 1px solid var(--line); }
-.ingredients li:last-child { border-bottom: 0; }
-
-.portions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  margin: 0.75rem 0 0;
-}
-
-.portions-antal { min-width: 6.5rem; text-align: center; font-weight: 600; }
-.portions[data-skalad="true"] .portions-antal { color: var(--accent); }
-.portions .source { flex-basis: 100%; margin: 0; }
-
-.stepper {
-  width: 2.2rem;
-  height: 2.2rem;
-  font: inherit;
-  font-size: 1.1rem;
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--line);
+.thumb {
+  flex: 0 0 84px;
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
   border-radius: 8px;
-  cursor: pointer;
+  background: var(--line);
 }
 
-.stepper:hover { border-color: var(--accent); }
-.stepper:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cardbody { min-width: 0; }
 
-.ingredients label {
-  display: flex;
-  gap: 0.7rem;
-  align-items: baseline;
-  padding: 0.55rem 0.2rem;
-  font-size: 1.05rem;
-  cursor: pointer;
+.cardbody h2 {
+  margin: 0 0 0.2rem;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+.cardbody h2 a { color: var(--text); text-decoration: none; }
+.cardbody h2 a:hover,
+.cardbody h2 a:focus-visible { color: var(--accent); text-decoration: underline; }
+
+.facts {
+  margin: 0 0 0.3rem;
+  font-size: 0.85rem;
+  color: var(--muted);
 }
 
-.ingredients input[type="checkbox"] {
-  flex: none;
-  width: 1.1rem;
-  height: 1.1rem;
-  accent-color: var(--accent);
-  cursor: pointer;
+.excerpt {
+  margin: 0;
+  font-size: 0.85rem;
+  /* Utdraget kapas redan i koden, men tre rader är gränsen för vad som läses
+     i en lista. Resten finns hos arrangören. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-/* Avbockat tonas ner i stället för att försvinna – man vill kunna se att man
-   faktiskt tagit ingrediensen, inte bara att raden är borta. */
-.ingredients label:has(input:checked) { color: var(--muted); text-decoration: line-through; }
-
-.steps li { padding: 0.35rem 0; font-size: 1.05rem; line-height: 1.6; }
-
-.badge {
-  justify-self: start;
+.flag {
+  display: inline-block;
+  margin-top: 0.4rem;
   padding: 0.1rem 0.5rem;
   font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--bg);
-  background: var(--good);
+  font-weight: 600;
+  color: #fca5a5;
+  border: 1px solid currentcolor;
   border-radius: 999px;
 }
 
-.footer { margin-top: 2rem; color: var(--muted); font-size: 0.8rem; }
+/* --- Knappar och sidfot -------------------------------------------------- */
 
-@media (min-width: 720px) {
-  body { max-width: 60rem; margin: 0 auto; }
-}
-
-/* Sitter utanför details, så favoritmarkering går att göra medan man bläddrar
-   utan att receptet fälls ut. */
-.stjarna {
-  align-self: start;
-  padding: 0.1rem 0.3rem;
-  font-size: 1.25rem;
-  line-height: 1;
-  color: var(--muted);
-  background: none;
+.button {
+  display: inline-block;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.9rem;
+  color: var(--bg);
+  background: var(--accent);
   border: 0;
+  border-radius: 10px;
   cursor: pointer;
+  text-decoration: none;
 }
 
-.stjarna[data-active="true"] { color: #fbbf24; }
-.stjarna:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.card { position: relative; }
-.card .stjarna { position: absolute; top: 0.5rem; right: 0.6rem; }
+.more { display: block; margin: 1.5rem auto 0; }
 
-/* Redan inhandlat: överstruket och nedtonat, men fortfarande läsbart – man
-   vill kunna se vad man tagit, inte bara att raden är borta. */
-.inhandlat label { color: var(--muted); text-decoration: line-through; }
-.inhandlat li { border-bottom-color: transparent; }
-
-/* Varan, avdelningen och knapparna på samma rad. Tidigare låg Ta bort under
-   ingrediensen, vilket gjorde listan dubbelt så hög som den behövde vara. */
-.varurad {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  align-items: center;
+.footer {
+  max-width: 46rem;
+  margin: 2.5rem auto 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.8rem;
+  color: var(--muted);
 }
+.footer p { margin: 0 0 0.6rem; }
 
-.varurad label { flex: 1; min-width: 10rem; }
-.varurad .varunamn { flex: 1; }
-.varurad .avdelningsval { margin-left: 0; }
-
-.varurad input[type="text"] {
-  flex: 1;
-  min-width: 10rem;
-  padding: 0.35rem 0.55rem;
-  font: inherit;
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--accent);
-  border-radius: 8px;
+@media (max-width: 420px) {
+  .thumb { flex-basis: 64px; width: 64px; height: 64px; }
 }

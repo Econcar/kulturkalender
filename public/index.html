@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Receptbok</title>
-<meta name="description" content="Hushållets receptsamling – laga efter dem, handla till dem.">
+<title>Kulturkalendern Stockholm</title>
+<meta name="description" content="Vad som händer på Stockholms scener – konserter, teater, utställningar och film, samlat på ett ställe.">
 <meta name="theme-color" content="#0f172a">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icons/icon-192.png">
@@ -13,72 +13,30 @@
 </head>
 <body>
 <header class="topbar">
-  <h1>Receptbok</h1>
-  <p class="tagline">Hushållets receptsamling – laga efter dem, handla till dem.</p>
-  <div class="account" id="account" hidden>
-    <span id="account-name"></span>
-    <button type="button" id="signout" class="linkbutton">Logga ut</button>
-  </div>
+  <h1>Kulturkalendern</h1>
+  <p class="tagline">Vad som händer på Stockholms scener.</p>
 </header>
 
 <main>
-  <p id="status" class="status" role="status">Kontrollerar …</p>
+  <label class="sr-only" for="search">Sök bland evenemangen</label>
+  <input type="search" id="search" class="search" autocomplete="off"
+         placeholder="Sök på titel, scen eller beskrivning">
 
-  <section class="panel" id="signin" hidden>
-    <h2>Logga in</h2>
-    <p>Samlingen är hushållets och kräver inloggning. Recepten är bara synliga
-      för dem som hör till samma hushåll.</p>
-    <button type="button" id="signin-button" class="button">Logga in med Google</button>
-  </section>
+  <div class="chips" id="filters" role="group" aria-label="Filtrera på kategori"></div>
 
-  <section class="panel" id="household-setup" hidden>
-    <h2>Skapa ditt hushåll</h2>
-    <p>Ett hushåll samlar recepten. Du blir ägare och kan bjuda in resten av
-      familjen senare.</p>
-    <form class="form" id="household-form">
-      <label for="household-name">Namn på hushållet</label>
-      <input type="text" id="household-name" maxlength="60" required
-             autocomplete="off" placeholder="Familjen Carlsson">
-      <button type="submit" class="button">Skapa hushåll</button>
-    </form>
-  </section>
+  <p id="status" class="status" role="status">Hämtar …</p>
 
-  <section id="library" hidden>
-    <div class="libraryhead">
-      <div>
-        <h2 id="household-title"></h2>
-        <p id="household-meta" class="muted"></p>
-        <button type="button" id="reparse" class="linkbutton" hidden></button>
-      </div>
-      <span class="row">
-        <a class="button" href="/inkopslistan">Inköpslistan</a>
-        <a class="button" href="/veckan">Veckoplanen</a>
-        <a class="button" href="/installningar">Inställningar</a>
-        <a class="button" href="/nytt">Lägg till recept</a>
-      </span>
-    </div>
+  <ul id="results" class="results"></ul>
 
-    <section class="panel invitepanel" id="invite" hidden>
-      <h3>Bjud in till hushållet</h3>
-      <p class="muted">Länken gäller i sju dagar och kan lösas in en gång. Den
-        som öppnar den och loggar in med Google blir medlem och ser alla recept.</p>
-      <button type="button" class="button" id="invite-create">Skapa inbjudningslänk</button>
-      <div class="row" id="invite-result" hidden>
-        <input type="text" id="invite-link" readonly aria-label="Inbjudningslänk">
-        <button type="button" class="linkbutton" id="invite-copy">Kopiera</button>
-      </div>
-    </section>
-
-    <label class="sr-only" for="search">Sök bland recepten</label>
-    <input type="search" id="search" class="search" autocomplete="off"
-           placeholder="Sök på namn eller ingrediens – t.ex. kyckling">
-
-    <div class="chips" id="filters"></div>
-    <ul id="results" class="results"></ul>
-  </section>
+  <button type="button" id="more" class="button more" hidden>Visa fler</button>
 </main>
 
 <footer class="footer">
+  <p class="muted">
+    Evenemangen hämtas från arrangörernas egna sidor. Titel, tid, plats och pris
+    är uppgifter de själva publicerar; beskrivningarna är förkortade utdrag.
+    Klicka vidare till arrangören för hela texten och för biljetter.
+  </p>
   <span id="meta"></span>
 </footer>
 

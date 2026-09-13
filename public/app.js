@@ -1,772 +1,227 @@
-// Listsidan och kökläget: hushållets recept med bild, sökbara, filtrerade på
-// kategori, läsbara utan nät och med skärmen tänd medan man lagar.
+// Listsidan. Hämtar /api/events och ritar kommande evenemang, dag för dag.
 //
-// Inmatningen ligger på /nytt. Den här sidan ska gå att använda med en hand och
-// skitiga fingrar.
-//
-// Allt som kommer utifrån renderas med textContent, aldrig innerHTML.
-// Receptexten är hämtad från en främmande sajt och behandlas därefter.
+// Sidan är publik och har ingen inloggning – det finns inget att logga in på.
+// Därför inget session.js, ingen Supabase-klient i webbläsaren, och inget
+// tillstånd att hålla reda på utöver de filter som står i adressfältet.
 
-import {
-  configured, describe, guard, loadHousehold, registerServiceWorker, setStatus, showVersion,
-  startSession,
-} from '/session.js';
-import { matchesQuery } from '/search.js';
-import { parseIngredient } from '/ingredients.js';
-import { scaleFactor, scaleIngredient, scaleQuantity } from '/scale.js';
-import { addToList, applyToList, planGroups } from '/shopping.js';
-import { dagarna, isoDatum, namnPåDag, veckansFönster } from '/vecka.js';
-import { normalizeTag, valbara } from '/tags.js';
-import {
-  loadHousehold as cachedHousehold, loadRecipes as cachedRecipes,
-  saveHousehold, saveRecipes, savedAgo,
-} from '/store.js';
-import { keepAwake, letSleep } from '/kitchen.js';
+import { groupByDay, price, time, utdrag } from '/format.js';
+import { VERSION } from '/version.js';
 
-const els = {
-  signIn: document.getElementById('signin'),
-  signInButton: document.getElementById('signin-button'),
-  setup: document.getElementById('household-setup'),
-  setupForm: document.getElementById('household-form'),
-  setupName: document.getElementById('household-name'),
-  library: document.getElementById('library'),
-  householdTitle: document.getElementById('household-title'),
-  householdMeta: document.getElementById('household-meta'),
-  reparse: document.getElementById('reparse'),
-  invite: document.getElementById('invite'),
-  inviteCreate: document.getElementById('invite-create'),
-  inviteResult: document.getElementById('invite-result'),
-  inviteLink: document.getElementById('invite-link'),
-  inviteCopy: document.getElementById('invite-copy'),
+const KATEGORIER = [
+  ['', 'Allt'],
+  ['konsert', 'Konsert'],
+  ['teater', 'Teater'],
+  ['opera', 'Opera'],
+  ['dans', 'Dans'],
+  ['utställning', 'Utställning'],
+  ['film', 'Film'],
+  ['barn', 'Barn'],
+  ['föreläsning', 'Föreläsning'],
+  ['humor', 'Humor'],
+];
+
+const SIDSTORLEK = 60;
+
+const el = {
   search: document.getElementById('search'),
   filters: document.getElementById('filters'),
+  status: document.getElementById('status'),
   results: document.getElementById('results'),
+  more: document.getElementById('more'),
+  meta: document.getElementById('meta'),
 };
 
-let client = null;
-let household = null;
-let recipes = [];
-let hushålletsTags = [];
-let activeTag = null;
-let query = '';
-let öppna = 0;
-let senasteHämtning = 0;
+// Filtren ligger i adressfältet och inte i en variabel, så att en filtrerad
+// lista går att länka och att bakåtknappen gör det man tror.
+const state = läsUrl();
+let laddade = [];
 
-registerServiceWorker();
-showVersion();
+init();
 
-if (!configured) {
-  setStatus('Sajten är utrullad, men public/config.js är inte ifylld ännu.', 'warn');
-} else {
-  start().catch((err) => setStatus(describe(err), 'error'));
-}
+function init() {
+  ritaFilter();
+  el.search.value = state.q;
+  el.meta.textContent = VERSION;
 
-function showOnly(section) {
-  for (const candidate of [els.signIn, els.setup, els.library]) {
-    candidate.hidden = candidate !== section;
-  }
-}
+  el.search.addEventListener('input', debounce(() => {
+    state.q = el.search.value.trim();
+    state.offset = 0;
+    skrivUrl();
+    hämta({ ersätt: true });
+  }, 300));
 
-/** En inbjudningslänk är /?invite=<token>. */
-const inbjudan = new URL(location.href).searchParams.get('invite');
-
-async function start() {
-  const { client: skapad, user, error } = await startSession();
-  client = skapad;
-  if (error) setStatus(`Inloggningen avbröts: ${error}`, 'error');
-
-  if (!user) {
-    // Med en inbjudan i adressen måste hela adressen tillbaka efter
-    // inloggningen, annars tappas token på vägen och länken är förbrukad i
-    // användarens ögon utan att någonsin ha lösts in.
-    els.signInButton.addEventListener('click', () => client.signIn(
-      inbjudan ? location.href : location.origin,
-    ));
-    showOnly(els.signIn);
-    if (inbjudan) setStatus('Du har blivit inbjuden till ett hushåll. Logga in för att gå med.');
-    else if (!error) setStatus('Inte inloggad.'); // Felet står redan där.
-    return;
-  }
-
-  if (inbjudan) await lösIn(client);
-
-  els.setupForm.addEventListener('submit', guard(async (event) => {
-    event.preventDefault();
-    const name = els.setupName.value.trim();
-    if (!name) return;
-    setStatus('Skapar hushåll …');
-    // created_by sätts av kolumnens default till auth.uid(), vilket policyn
-    // kräver. return=minimal eftersom raden inte går att läsa tillbaka förrän
-    // triggern hunnit göra oss till medlem.
-    await client.insert('households', { name }, { returning: 'minimal' });
-    await show(client);
-  }));
-
-  els.search.addEventListener('input', () => {
-    query = els.search.value;
-    renderRecipes();
+  el.more.addEventListener('click', () => {
+    state.offset += SIDSTORLEK;
+    hämta({ ersätt: false });
   });
 
-  els.reparse.addEventListener('click', guard(() => reparse(client)));
+  // Kommer man tillbaka till fliken efter en stund är listan gammal – ett
+  // evenemang kan ha passerat. Hämta om i stället för att visa i går.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') hämta({ ersätt: true, tyst: true });
+  });
 
-  els.inviteCreate.addEventListener('click', guard(() => skapaInbjudan(client)));
+  window.addEventListener('popstate', () => {
+    Object.assign(state, läsUrl());
+    el.search.value = state.q;
+    ritaFilter();
+    hämta({ ersätt: true });
+  });
 
-  els.inviteCopy.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(els.inviteLink.value);
-      els.inviteCopy.textContent = 'Kopierad';
-    } catch {
-      // Utan urklippsrättighet får man markera själv – fältet är läsbart.
-      els.inviteLink.select();
+  hämta({ ersätt: true });
+}
+
+async function hämta({ ersätt, tyst = false } = {}) {
+  if (!tyst) sätt(ersätt ? 'Hämtar …' : 'Hämtar fler …');
+
+  const fråga = new URLSearchParams({ limit: String(SIDSTORLEK) });
+  if (state.category) fråga.set('category', state.category);
+  if (state.q) fråga.set('q', state.q);
+  if (ersätt) state.offset = 0;
+  if (state.offset) fråga.set('offset', String(state.offset));
+
+  try {
+    const res = await fetch(`/api/events?${fråga}`);
+    if (!res.ok) throw new Error(`servern svarade ${res.status}`);
+    const data = await res.json();
+
+    laddade = ersätt ? data.events : [...laddade, ...data.events];
+    rita(laddade);
+    el.more.hidden = data.events.length < SIDSTORLEK;
+
+    if (!laddade.length) {
+      sätt(state.q || state.category
+        ? 'Inget matchade filtret.'
+        : 'Inga evenemang inlagda ännu. Skannern har inte körts.', 'warn');
+    } else {
+      sätt(`${laddade.length} evenemang`, 'ok');
     }
-  });
-
-  await show(client);
-}
-
-async function show(client) {
-  setStatus('Hämtar hushåll …');
-
-  // Hushållet hämtas före recepten och avgör om biblioteket ritas alls. Utan
-  // en sparad kopia här spelar den sparade receptkopian ingen roll – då faller
-  // laddningen redan på det här anropet, och kökläget är oanvändbart utan nät.
-  try {
-    household = await loadHousehold(client);
-    if (household) saveHousehold(household);
   } catch (err) {
-    household = cachedHousehold();
-    if (!household) throw err;
-  }
-
-  if (!household) {
-    showOnly(els.setup);
-    setStatus('Du hör inte till något hushåll ännu.');
-    return;
-  }
-
-  showOnly(els.library);
-  els.householdTitle.textContent = household.name;
-  // Bara ägare kan bjuda in – policyn säger det, och knappen ska säga samma sak.
-  els.invite.hidden = household.role !== 'owner';
-  await fetchRecipes(client);
-}
-
-const SELECT = 'recipes?select=id,title,image_url,source_url,source_name,servings,'
-  + 'total_time_min,instructions,is_favorite,'
-  + 'recipe_ingredients(id,recipe_id,raw_text,position,quantity,unit,name,note),'
-  + 'recipe_tags(tags(id,name))';
-
-async function fetchRecipes(client) {
-  try {
-    [recipes, hushålletsTags] = await Promise.all([
-      client.rest(`${SELECT}&household_id=eq.${household.id}&order=title.asc`),
-      client.rest(`tags?select=id,name&household_id=eq.${household.id}&order=name.asc`),
-    ]);
-    saveRecipes(recipes, household.id);
-    senasteHämtning = Date.now();
-    setStatus('Ansluten.', 'ok');
-  } catch (err) {
-    // Utan nät är den sparade kopian hela poängen med kökläget. Finns ingen
-    // är felet däremot värt att visa – då är det inte offline som är problemet.
-    const sparat = cachedRecipes(household.id);
-    if (!sparat) throw err;
-    recipes = sparat.recipes;
-    setStatus(`Ingen kontakt med servern. Visar kopian som sparades ${savedAgo(sparat.saved_at)}.`, 'warn');
-  }
-
-  renderMeta();
-  renderFilters();
-  renderRecipes();
-}
-
-/**
- * Löser in inbjudan och städar bort den ur adressen.
- *
- * Inlösen går via en security definer-funktion i databasen: den som löser in
- * är per definition inte medlem ännu och kan varken läsa inbjudningsraden
- * eller skriva sig in i hushållet på egen hand.
- */
-async function lösIn(client) {
-  setStatus('Löser in inbjudan …');
-  try {
-    await client.rest('rpc/redeem_household_invite', {
-      method: 'POST',
-      body: { invite_token: inbjudan },
-    });
-    setStatus('Du är med i hushållet.', 'ok');
-  } catch (err) {
-    setStatus(describe(err), 'error');
-  } finally {
-    // Bort ur adressen oavsett utfall. En förbrukad länk ska inte lösas in
-    // igen vid varje omladdning, och ett misslyckande inte upprepas i tysthet.
-    history.replaceState(null, '', location.pathname);
+    // Service workern serverar ett cachat svar när nätet saknas, så hamnar vi
+    // här är det antingen första besöket offline eller ett verkligt serverfel.
+    // Att säga "kunde inte hämta" och behålla det som redan står på skärmen är
+    // ärligare än att tömma listan.
+    sätt(`Kunde inte hämta evenemangen: ${err.message}`, 'error');
+    if (!laddade.length) el.results.replaceChildren();
   }
 }
 
-async function skapaInbjudan(client) {
-  setStatus('Skapar länk …');
-  els.inviteCreate.disabled = true;
+function rita(events) {
+  const frag = document.createDocumentFragment();
 
-  try {
-    // Token sätts av databasens default, inte av klienten.
-    const [ny] = await client.insert('household_invites', { household_id: household.id });
-    els.inviteLink.value = `${location.origin}/?invite=${ny.token}`;
-    els.inviteResult.hidden = false;
-    els.inviteCopy.textContent = 'Kopiera';
-    setStatus('Länken gäller i sju dagar och kan lösas in en gång.', 'ok');
-  } finally {
-    els.inviteCreate.disabled = false;
-  }
-}
+  for (const dag of groupByDay(events)) {
+    const rubrik = document.createElement('li');
+    rubrik.className = 'dayheading';
+    rubrik.textContent = dag.heading;
+    frag.append(rubrik);
 
-/**
- * Hämtar om när fliken blir synlig igen, så att det någon annan i hushållet
- * lagt till syns utan omladdning.
- *
- * Tre spärrar, och den mellersta är den viktiga: står receptet utfällt läser
- * någon det just nu, förmodligen mitt i en deg. En omritning hade fällt ihop
- * det – och att växla till en timer och tillbaka är precis vad man gör i ett
- * kök. Färsk data är inte värd det priset.
- */
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'visible') return;
-  if (!client || !household || öppna > 0) return;
-  if (Date.now() - senasteHämtning < 15_000) return; // Fliksurfande ska inte spamma.
-
-  fetchRecipes(client).catch((err) => setStatus(describe(err), 'error'));
-});
-
-const tagsOf = (recipe) => (recipe.recipe_tags ?? []).map((row) => row.tags).filter(Boolean);
-
-/**
- * Kör tolkningen över alla sparade ingrediensrader.
- *
- * Går att göra om hur många gånger som helst: raw_text rörs aldrig, bara
- * mängd, enhet och not skrivs. Blir reglerna bättre trycker man bara igen.
- */
-async function reparse(client) {
-  const rader = allaIngredienser();
-  setStatus(`Tolkar ${rader.length} ingrediensrader …`);
-  els.reparse.disabled = true;
-
-  try {
-    const uppdaterade = rader.map((rad) => {
-      const tolkad = parseIngredient(rad.raw_text);
-      return {
-        id: rad.id,
-        recipe_id: rad.recipe_id,
-        position: rad.position,
-        raw_text: rad.raw_text,
-        quantity: tolkad.quantity,
-        unit: tolkad.unit,
-        name: tolkad.name || null,
-        note: tolkad.note,
-      };
-    });
-
-    // Upsert på primärnyckeln: ett anrop i stället för ett per rad.
-    await client.rest('recipe_ingredients?on_conflict=id', {
-      method: 'POST',
-      body: uppdaterade,
-      headers: { prefer: 'return=minimal,resolution=merge-duplicates' },
-    });
-
-    const medMängd = uppdaterade.filter((rad) => rad.quantity !== null).length;
-    await fetchRecipes(client);
-    setStatus(`Tolkade ${medMängd} av ${uppdaterade.length} rader. Resten saknar mängd i originalet.`, 'ok');
-  } finally {
-    els.reparse.disabled = false;
-  }
-}
-
-const allaIngredienser = () => recipes.flatMap((recipe) => recipe.recipe_ingredients ?? []);
-
-function renderMeta() {
-  const roleName = household.role === 'owner' ? 'ägare' : 'medlem';
-  els.householdMeta.textContent = recipes.length === 0
-    ? `Du är ${roleName}. Inga recept ännu.`
-    : `Du är ${roleName}. ${recipes.length} recept.`;
-
-  // Otolkade rader är inte nödvändigtvis fel – "smör till formen" har ingen
-  // mängd och ska inte ha någon. Knappen visas därför bara när det finns
-  // rader som tolkningen skulle sätta en mängd på om den kördes.
-  // Också rader som saknar vara: namnkolumnen kom med inköpslistan och är tom
-  // på allt som sparades dessförinnan.
-  const otolkade = allaIngredienser().filter((rad) => {
-    const tolkad = parseIngredient(rad.raw_text);
-    return (rad.quantity === null && tolkad.quantity !== null)
-      || (!rad.name && tolkad.name);
-  });
-
-  els.reparse.hidden = otolkade.length === 0;
-  els.reparse.textContent = `Tolka ${otolkade.length} ingrediensrader`;
-}
-
-function renderFilters() {
-  // Bara kategorier som faktiskt används visas. En tom kategori är en knapp
-  // som garanterat ger noll träffar.
-  const used = new Map();
-  for (const recipe of recipes) {
-    for (const tag of tagsOf(recipe)) used.set(tag.id, tag.name);
+    for (const event of dag.events) frag.append(kort(event));
   }
 
-  els.filters.replaceChildren();
-  if (!used.size) return;
-
-  els.filters.append(chip('Alla', activeTag === null, () => {
-    activeTag = null;
-    renderFilters();
-    renderRecipes();
-  }));
-
-  if (recipes.some((recipe) => recipe.is_favorite)) {
-    els.filters.append(chip('★ Favoriter', activeTag === 'favorit', () => {
-      activeTag = activeTag === 'favorit' ? null : 'favorit';
-      renderFilters();
-      renderRecipes();
-    }));
-  }
-
-  for (const [id, name] of [...used].sort((a, b) => a[1].localeCompare(b[1], 'sv'))) {
-    els.filters.append(chip(name, activeTag === id, () => {
-      activeTag = activeTag === id ? null : id;
-      renderFilters();
-      renderRecipes();
-    }));
-  }
+  el.results.replaceChildren(frag);
 }
 
-function chip(label, active, onClick) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'chip';
-  button.textContent = label;
-  if (active) button.dataset.active = 'true';
-  button.addEventListener('click', onClick);
-  return button;
-}
-
-function renderRecipes() {
-  const visible = recipes.filter((recipe) => {
-    // 'favorit' är inte en kategori utan ett eget filter. Det ligger bland
-    // kategoriknapparna för att det är där man letar efter det.
-    const rättKategori = activeTag === null
-      || (activeTag === 'favorit' ? recipe.is_favorite : tagsOf(recipe).some((tag) => tag.id === activeTag));
-    return rättKategori && matchesQuery(recipe, query);
-  });
-
-  // Ett utfällt recept försvinner vid omritning, och därmed också dess låsbehov.
-  öppna = 0;
-  letSleep();
-
-  if (!visible.length) {
-    const tom = document.createElement('li');
-    tom.className = 'empty';
-    tom.textContent = recipes.length
-      ? 'Inget recept matchar. Prova ett annat ord eller en annan kategori.'
-      : 'Inga recept ännu. Lägg till det första.';
-    els.results.replaceChildren(tom);
-    return;
-  }
-
-  els.results.replaceChildren(...visible.map(recipeCard));
-}
-
-/** Byggt med DOM-anrop, inte innerHTML: texten kommer från främmande sajter. */
-function recipeCard(recipe) {
+function kort(event) {
   const li = document.createElement('li');
   li.className = 'card';
 
-  if (recipe.image_url) {
+  if (event.image_url) {
     const img = document.createElement('img');
     img.className = 'thumb';
-    img.src = recipe.image_url;
+    img.src = event.image_url;
     img.alt = '';
     img.loading = 'lazy';
-    // Bilden ligger hos källan och finns inte utan nät. Då ska kortet krympa,
-    // inte visa en trasig ikon.
+    // Försvinner bilden hos källan ska kortet krympa, inte visa en trasig ikon.
     img.addEventListener('error', () => img.remove());
     li.append(img);
   }
 
-  const body = document.createElement('div');
-  body.className = 'card-body';
+  const kropp = document.createElement('div');
+  kropp.className = 'cardbody';
 
-  const details = document.createElement('details');
-  details.addEventListener('toggle', () => {
-    öppna += details.open ? 1 : -1;
-    if (öppna > 0) keepAwake();
-    else letSleep();
-  });
+  const titel = document.createElement('h2');
+  const länk = document.createElement('a');
+  länk.href = event.ticket_url || event.url || '#';
+  länk.textContent = event.title;
+  länk.rel = 'noopener';
+  länk.target = '_blank';
+  titel.append(länk);
+  kropp.append(titel);
 
-  const summary = document.createElement('summary');
-  summary.textContent = recipe.title;
-  details.append(summary);
+  const rad = [time(event.starts_at), event.venue, price(event.price_min, event.price_max, event.currency)]
+    .filter(Boolean)
+    .join(' · ');
+  const fakta = document.createElement('p');
+  fakta.className = 'facts';
+  fakta.textContent = rad;
+  kropp.append(fakta);
 
-  // Stjärnan sitter utanför details, så den går att klicka utan att fälla ut
-  // receptet – man markerar favoriter medan man bläddrar, inte medan man lagar.
-  li.append(stjärna(recipe));
-
-  const facts = [
-    recipe.servings ? `${recipe.servings} portioner` : null,
-    recipe.total_time_min ? `${recipe.total_time_min} min` : null,
-    recipe.source_name,
-  ].filter(Boolean);
-
-  if (facts.length) {
-    const meta = document.createElement('p');
-    meta.className = 'source';
-    meta.textContent = facts.join(' · ');
-    details.append(meta);
+  if (event.description) {
+    const text = document.createElement('p');
+    text.className = 'muted excerpt';
+    // Utdrag, inte hela texten. Se avsnitt 7 i docs/projektstart.md.
+    text.textContent = utdrag(event.description);
+    kropp.append(text);
   }
 
-  details.append(kategoriRad(recipe));
-
-  const ingredients = [...(recipe.recipe_ingredients ?? [])]
-    .sort((a, b) => a.position - b.position);
-
-  // Ligger utanför blocket nedan: planeringsraden behöver den också, och ett
-  // recept utan tolkade ingredienser går fortfarande att planera in.
-  let faktor = 1;
-
-  if (ingredients.length) {
-    const list = document.createElement('ul');
-    list.className = 'ingredients';
-
-    // Kryssrutorna är urvalet till inköpslistan. Behåll referensen till dem, så
-    // att knappen nedan vet vilka som är ikryssade och kan nollställa dem efteråt.
-    const rutor = [];
-
-    // Ritas om vid varje portionsändring. Bockarna nollställs på köpet, och
-    // det är rätt: ändrar man antalet portioner mäter man upp på nytt.
-    const rita = (ny) => {
-      faktor = ny;
-      rutor.length = 0;
-      list.replaceChildren(...ingredients.map((item) => {
-        const { li, box } = ingredientRow(scaleIngredient(item, faktor));
-        rutor.push({ item, box });
-        return li;
-      }));
-    };
-
-    // Väljaren kräver två saker: ett portionsantal att utgå från, och minst en
-    // tolkad mängd att räkna om. Saknas det senare – receptet är sparat innan
-    // tolkningen fanns – hade knapparna inte gjort någonting alls när man
-    // tryckte på dem.
-    const gårAttSkala = recipe.servings
-      && ingredients.some((item) => item.quantity !== null && item.quantity !== undefined);
-
-    if (gårAttSkala) details.append(portionsväljare(recipe, rita));
-    rita(1);
-    details.append(list);
-
-    const handla = document.createElement('button');
-    handla.type = 'button';
-    handla.className = 'linkbutton';
-    handla.textContent = 'Lägg ikryssade i inköpslistan';
-    handla.addEventListener('click', guard(async () => {
-      const valda = rutor.filter(({ box }) => box.checked);
-      if (!valda.length) {
-        setStatus('Kryssa i de ingredienser du vill handla först.', 'warn');
-        return;
-      }
-
-      await läggIInköpslista(valda.map(({ item }) => item), faktor);
-
-      // Kryssen nollställs först när det gått vägen. Slår anropet fel står de
-      // kvar, så man kan trycka igen utan att välja om.
-      for (const { box } of valda) box.checked = false;
-    }));
-    details.append(handla);
+  if (event.status !== 'scheduled') {
+    const flagga = document.createElement('span');
+    flagga.className = 'flag';
+    flagga.textContent = { cancelled: 'Inställt', postponed: 'Uppskjutet', rescheduled: 'Nytt datum', 'moved-online': 'Digitalt' }[event.status] ?? event.status;
+    kropp.append(flagga);
   }
 
-  details.append(planeraRad(recipe, () => faktor));
-
-  if (recipe.instructions?.length) {
-    const steps = document.createElement('ol');
-    steps.className = 'steps';
-    for (const step of recipe.instructions) {
-      const row = document.createElement('li');
-      row.textContent = step;
-      steps.append(row);
-    }
-    details.append(steps);
-  }
-
-  if (recipe.source_url) {
-    const link = document.createElement('a');
-    link.href = recipe.source_url;
-    link.textContent = 'Öppna originalet';
-    link.rel = 'noopener noreferrer';
-    link.target = '_blank';
-    details.append(link);
-  }
-
-  body.append(details);
-  li.append(body);
+  li.append(kropp);
   return li;
 }
 
-/**
- * Planerar in rätten utan att gå via veckosidan.
- *
- * Beslutet fattas här. Att först läsa receptet, sedan byta sida och leta rätt
- * på titeln i en rulllista är två steg för något man redan bestämt sig för.
- *
- * Portionerna följer väljaren ovanför: har man ställt om till sex är det sex
- * portioner som planeras in, och inköpslistan räknar på dem.
- */
-function planeraRad(recipe, aktuellFaktor) {
-  const rad = document.createElement('p');
-  rad.className = 'planera';
-
-  const dag = document.createElement('select');
-  dag.setAttribute('aria-label', `Dag att laga ${recipe.title}`);
-  dag.replaceChildren(...dagarna().map((d, index) => {
-    const option = document.createElement('option');
-    option.value = isoDatum(d);
-    option.textContent = namnPåDag(d, index);
-    return option;
-  }));
-
-  const knapp = document.createElement('button');
-  knapp.type = 'button';
-  knapp.className = 'linkbutton';
-  knapp.textContent = 'Lägg i veckan';
-  knapp.addEventListener('click', guard(async () => {
-    setStatus('Lägger i veckan …');
-
-    await client.insert('meal_plan', {
-      household_id: household.id,
-      recipe_id: recipe.id,
-      date: dag.value,
-      servings: recipe.servings ? Math.round(recipe.servings * aktuellFaktor()) : null,
-    }, { returning: 'minimal' });
-
-    setStatus(`${recipe.title} är inlagd i veckan (${dag.selectedOptions[0].textContent}).`, 'ok');
-  }));
-
-  rad.append(dag, knapp);
-  return rad;
-}
-
-/**
- * Favoritmarkering. Hushållets, inte den enskildes – allt annat i appen är
- * delat, och en stjärna som betyder olika saker för olika medlemmar vore det
- * enda undantaget.
- */
-function stjärna(recipe) {
-  const knapp = document.createElement('button');
-  knapp.type = 'button';
-  knapp.className = 'stjarna';
-  knapp.textContent = recipe.is_favorite ? '★' : '☆';
-  knapp.dataset.active = String(Boolean(recipe.is_favorite));
-  knapp.title = recipe.is_favorite ? 'Ta bort som favorit' : 'Markera som favorit';
-  knapp.setAttribute('aria-pressed', String(Boolean(recipe.is_favorite)));
-
-  knapp.addEventListener('click', guard(async () => {
-    const nytt = !recipe.is_favorite;
-    await client.rest(`recipes?id=eq.${recipe.id}`, {
-      method: 'PATCH',
-      body: { is_favorite: nytt },
-      headers: { prefer: 'return=minimal' },
+function ritaFilter() {
+  const frag = document.createDocumentFragment();
+  for (const [värde, etikett] of KATEGORIER) {
+    const knapp = document.createElement('button');
+    knapp.type = 'button';
+    knapp.className = 'chip';
+    knapp.textContent = etikett;
+    knapp.setAttribute('aria-pressed', String(state.category === värde));
+    knapp.addEventListener('click', () => {
+      state.category = värde;
+      state.offset = 0;
+      skrivUrl();
+      ritaFilter();
+      hämta({ ersätt: true });
     });
-
-    recipe.is_favorite = nytt;
-    saveRecipes(recipes, household.id);
-    knapp.textContent = nytt ? '★' : '☆';
-    knapp.dataset.active = String(nytt);
-    knapp.setAttribute('aria-pressed', String(nytt));
-    renderFilters();
-  }));
-
-  return knapp;
-}
-
-/**
- * Lägger de ikryssade ingredienserna i inköpslistan, utan att gå via
- * veckoplanen.
- *
- * Bara det man kryssat i. Man har oftast det mesta hemma, och en knapp som
- * lade i allt gav en lista där man själv fick plocka bort mjöl och salt varje
- * gång – mer arbete än att skriva den för hand.
- *
- * Mängderna följer portionsväljaren: har man ställt om till sex portioner är
- * det sex portioner man handlar till. Rader utan mängd – "salt efter smak" –
- * följer med utan mängd, för de ska ändå stå på listan om man saknar salt.
- *
- * Vad som ska summeras och vad som ska börja om avgörs av addToList. Här görs
- * bara skrivningarna.
- */
-async function läggIInköpslista(ingredienser, faktor) {
-  const rader = ingredienser
-    .map((rad) => ({
-      name: (rad.name || rad.raw_text || '').trim(),
-      unit: rad.unit ?? null,
-      quantity: scaleQuantity(rad.quantity, faktor),
-    }))
-    .filter((rad) => rad.name);
-
-  if (!rader.length) {
-    setStatus('De ikryssade raderna saknar varunamn.', 'warn');
-    return;
+    frag.append(knapp);
   }
-
-  setStatus('Lägger i inköpslistan …');
-
-  const { från, till } = veckansFönster();
-  const [sparade, planerat] = await Promise.all([
-    client.rest('shopping_list_items?select=id,name,unit,quantity,source,checked,hidden'
-      + `&household_id=eq.${household.id}`),
-    client.rest('meal_plan?select=recipe_id,servings,meal_plan_items(name,quantity,unit)'
-      + `&household_id=eq.${household.id}&date=gte.${från}&date=lte.${till}`),
-  ]);
-
-  // Recepten ligger redan i minnet med sina ingredienser, så det är bara
-  // planens rader som behöver hämtas för att veta vad veckan redan bidrar med.
-  const resultat = addToList(rader, sparade, planGroups(planerat.map((rad) => ({
-    recipe: recipes.find((recept) => recept.id === rad.recipe_id),
-    servings: rad.servings,
-    extra: rad.meal_plan_items ?? [],
-  }))));
-
-  await applyToList(client, household.id, resultat);
-
-  const antal = resultat.write.length === 1 ? '1 vara' : `${resultat.write.length} varor`;
-  setStatus(`${antal} lagda i inköpslistan.`, 'ok');
+  el.filters.replaceChildren(frag);
 }
 
-/**
- * Kategorierna, klickbara direkt i receptvyn.
- *
- * Att kunna sätta dem i efterhand är hela poängen: recept importeras ofta i en
- * hast och kategoriseras när man har lust. Att behöva mata in receptet på nytt
- * för att lägga till "middag" hade betytt att ingen gjorde det.
- *
- * Här går det bara att kryssa i och ur. Nya kategorier skapas under Inställningar
- * och tas bort där. Att bestämma vilka kategorier som finns gör man sällan och
- * eftertänksamt; att kryssa i dem gör man ofta och i förbifarten.
- */
-function kategoriRad(recipe) {
-  const bar = document.createElement('div');
-  bar.className = 'chips tagbar';
-
-  const rita = () => {
-    const valda = new Set(tagsOf(recipe).map((tag) => normalizeTag(tag.name)));
-
-    bar.replaceChildren(...valbara(hushålletsTags, [...valda]).map((name) => {
-      const knapp = chip(name, valda.has(name), guard(() => växlaTag(recipe, name, rita)));
-      knapp.classList.add('chip-liten');
-      return knapp;
-    }));
+function läsUrl() {
+  const p = new URLSearchParams(location.search);
+  return {
+    category: p.get('kategori') ?? '',
+    q: p.get('sok') ?? '',
+    offset: 0,
   };
-
-  rita();
-  return bar;
 }
 
-/**
- * Lägger till eller tar bort en kategori på receptet.
- *
- * Ritar bara om kategoriraden och filtren, inte hela listan. En omritning hade
- * fällt ihop receptet man just satt och läser – samma skäl som att omhämtningen
- * vid flikbyte avstår när något är utfällt.
- */
-async function växlaTag(recipe, name, rita) {
-  const nuvarande = tagsOf(recipe);
-  const träff = nuvarande.find((tag) => normalizeTag(tag.name) === name);
-
-  if (träff) {
-    await client.rest(
-      `recipe_tags?recipe_id=eq.${recipe.id}&tag_id=eq.${träff.id}`,
-      { method: 'DELETE', headers: { prefer: 'return=minimal' } },
-    );
-    recipe.recipe_tags = (recipe.recipe_tags ?? [])
-      .filter((rad) => rad.tags?.id !== träff.id);
-  } else {
-    // Kategorin måste finnas sedan tidigare. Den här vyn kopplar bara ihop –
-    // att den kunde skapa nya bakvägen vore att kringgå regeln om att
-    // kategorier bestäms under Inställningar.
-    const tag = hushålletsTags.find((t) => normalizeTag(t.name) === name);
-    if (!tag) {
-      setStatus(`Kategorin ${name} finns inte längre. Skapa den under Inställningar.`, 'warn');
-      return;
-    }
-
-    await client.rest('recipe_tags?on_conflict=recipe_id,tag_id', {
-      method: 'POST',
-      body: { recipe_id: recipe.id, tag_id: tag.id },
-      headers: { prefer: 'return=minimal,resolution=merge-duplicates' },
-    });
-
-    recipe.recipe_tags = [...(recipe.recipe_tags ?? []), { tags: tag }];
-  }
-
-  saveRecipes(recipes, household.id);
-  rita();
-  renderFilters();
+function skrivUrl() {
+  const p = new URLSearchParams();
+  if (state.category) p.set('kategori', state.category);
+  if (state.q) p.set('sok', state.q);
+  const fråga = p.toString();
+  history.replaceState(null, '', fråga ? `?${fråga}` : location.pathname);
 }
 
-/**
- * Färre eller fler portioner. Ändrar bara ingrediensmängderna – tillagningstid
- * och ugnstemperatur står kvar, för de följer inte portionsantalet. Det står
- * utskrivet i stället för att tigas ihjäl.
- */
-function portionsväljare(recipe, rita) {
-  const rad = document.createElement('p');
-  rad.className = 'portions';
+function sätt(text, ton) {
+  el.status.textContent = text;
+  if (ton) el.status.dataset.tone = ton;
+  else delete el.status.dataset.tone;
+}
 
-  let antal = recipe.servings;
-
-  const visa = document.createElement('span');
-  visa.className = 'portions-antal';
-
-  const knapp = (tecken, steg) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'stepper';
-    b.textContent = tecken;
-    b.setAttribute('aria-label', steg < 0 ? 'Färre portioner' : 'Fler portioner');
-    b.addEventListener('click', () => {
-      antal = Math.min(99, Math.max(1, antal + steg));
-      uppdatera();
-    });
-    return b;
+function debounce(fn, ms) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
   };
-
-  function uppdatera() {
-    visa.textContent = `${antal} portioner`;
-    rad.dataset.skalad = antal === recipe.servings ? 'false' : 'true';
-    rita(scaleFactor(recipe.servings, antal));
-  }
-
-  const etikett = document.createElement('span');
-  etikett.className = 'source';
-  etikett.textContent = 'Mängderna skalas – tiden och ugnsvärmen gör det inte.';
-
-  rad.append(knapp('−', -1), visa, knapp('+', 1), etikett);
-  uppdatera();
-  return rad;
-}
-
-/**
- * Avbockningsbar, för att hålla reda på var man är när man mäter upp, och för
- * att välja ut vad som ska handlas. En riktig kryssruta och inte en klickbar
- * rad: den går att träffa med tummen, fungerar med tangentbord och läses upp
- * rätt av skärmläsare.
- *
- * Bocken sparas inte. Nästa gång man lagar rätten börjar man om ändå.
- *
- * Returnerar rutan tillsammans med raden. Anroparen behöver den för att veta
- * vad som är ikryssat – att leta upp den med en väljare efteråt hade knutit
- * knappen till hur den här funktionen råkar bygga sin uppmärkning.
- */
-function ingredientRow(text) {
-  const li = document.createElement('li');
-  const label = document.createElement('label');
-  const box = document.createElement('input');
-  box.type = 'checkbox';
-  label.append(box, document.createTextNode(text));
-  li.append(label);
-  return { li, box };
 }

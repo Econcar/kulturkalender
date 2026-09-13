@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<title>Fatoumata Diawara | Kulturhuset Stadsteatern</title>
+<!--
+  Riktig data, hämtad från kulturhusetstadsteatern.se/konserter/fatoumata-diawara
+  2026-09-13. Oförändrad med flit: en fixtur som städats speglar inte längre det
+  källan faktiskt skickar, och då slutar testet vara ett test av verkligheten.
+
+  Notera @type: "Event" – generiskt – med genren i ett eget fält. Det är därför
+  category() i lib/event.mjs måste falla tillbaka på genretexten. Utan det
+  hamnar varenda konsert Kulturhuset publicerar under "övrigt".
+-->
+<script type="application/ld+json">{
+    "@context": "https://schema.org",
+    "@type": "Event",
+    "genre": "Konserter",
+    "name": "Fatoumata Diawara",
+    "image": "https://kulturhusetstadsteatern.se/sites/default/files/styles/hero_full/public/2026-06/FATOUMATA-BANNER_press.jpg?h=2f40abf5&itok=SSPmJppC",
+    "description": "Hyllade maliska sångerskan Fatoumata Diawara har under det senaste decenniet etablerat sig som en av Afrikas mest inflytelserika röster. Med sin kraftfulla röst, sitt unika gitarrspel och sin förmåga att förena traditionell Wassoulou-musik med modern afropop och västerländska influenser, har hon nått en publik långt utanför kontinentens gränser. Den 17 oktober spelar hon i Stockholm!",
+    "keywords": "Konserter, Sergels torg, Studion, plan 1, kulturhuset stadsteatern, Fatoumata Diawara",
+    "additionalType": "Konserter",
+    "url": "https://kulturhusetstadsteatern.se/konserter/fatoumata-diawara",
+    "startDate": "2026-10-17T20:00:00+02:00",
+    "endDate": "2026-10-17T22:00:00+02:00",
+    "location": {
+        "@type": "Place",
+        "name": "Studion, plan 1",
+        "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "Sergels torg",
+            "addressLocality": "Stockholm",
+            "addressCountry": "SE"
+        }
+    },
+    "offers": {
+        "@type": "Offer",
+        "url": "https://tix.kulturhusetstadsteatern.se/sv/buyingflow/tickets/31768/",
+        "price": 550,
+        "priceCurrency": "SEK"
+    },
+    "eventStatus": "https://schema.org/EventScheduled",
+    "eventAttendanceMode": "https://schema.org/EventScheduled",
+    "organizer": {
+        "@type": "Organization",
+        "name": "Kulturhuset Stadsteatern",
+        "url": "https://www.kulturhusetstadsteatern.se"
+    }
+}</script>
+</head>
+<body>Fatoumata Diawara</body>
+</html>

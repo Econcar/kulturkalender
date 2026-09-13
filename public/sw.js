@@ -3,37 +3,17 @@
 // Måste vara samma sträng som VERSION i public/version.js – annars visar
 // sidfoten en annan version än den som faktiskt cachats. tests/version.test.mjs
 // ser till att de inte glider isär.
-const CACHE_VERSION = 'v31';
+const CACHE_VERSION = 'v32';
 const SHELL_CACHE = `shell-${CACHE_VERSION}`;
 const DATA_CACHE = `data-${CACHE_VERSION}`;
 
 const SHELL = [
   '/',
   '/index.html',
-  '/nytt',
-  '/veckan',
-  '/inkopslistan',
-  '/installningar',
   '/styles.css',
   '/app.js',
-  '/nytt.js',
-  '/veckan.js',
-  '/inkopslistan.js',
-  '/installningar.js',
-  '/shopping.js',
-  '/vecka.js',
-  '/categories.js',
-  '/tags.js',
-  '/session.js',
-  '/supabase.js',
-  '/lang.js',
-  '/search.js',
-  '/store.js',
-  '/kitchen.js',
-  '/ingredients.js',
-  '/scale.js',
+  '/format.js',
   '/version.js',
-  '/config.js',
   '/manifest.webmanifest',
   '/icons/icon-192.png',
 ];
