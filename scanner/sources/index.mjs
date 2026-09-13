@@ -12,14 +12,17 @@
 //
 // Ordningen att bygga dem, från undersökningen i docs/projektstart.md avsnitt 4:
 //   'kulturhuset'  – ld+json @type: Event, komplett. Byggd.
-//   'dramaten'     – __NEXT_DATA__ med performances[]. Bevisar att adapter-
-//                    mönstret bär en källa som inte har ld+json alls.
+//   'dramaten'     – __NEXT_DATA__ med performances[]. Byggd, och den bevisade
+//                    poängen: adaptermönstret bär en källa utan ld+json, och
+//                    ger dessutom enskilda föreställningar i stället för hela
+//                    speltider.
 //   'konserthuset' – og:-taggar och URL-mönster. Den tunnaste av de tre, och
 //                    därför den som visar var gränsen går.
 
 import kulturhuset from './kulturhuset.mjs';
+import dramaten from './dramaten.mjs';
 
-const sources = [kulturhuset];
+const sources = [kulturhuset, dramaten];
 
 export default sources;
 

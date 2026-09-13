@@ -134,7 +134,9 @@ får innehålla `/rest/v1/`.
 - [x] RLS: alla läser, ingen skriver – bevisat med `db/rls-test.sql`
 - [x] Fas 2: adapter för Kulturhuset Stadsteatern – går via kategorisidorna,
       inte sitemapen, som till 80 % är arkiv
-- [ ] Fas 4: adaptrar för Dramaten (`__NEXT_DATA__`) och Konserthuset (`og:`)
+- [x] Adapter för Dramaten – `__NEXT_DATA__` i stället för `ld+json`, och en
+      rad per föreställning i stället för ett spann per uppsättning
+- [ ] Adapter för Konserthuset (`og:`-taggar och URL-mönster)
 - [ ] Fas 5: dubbletter mellan källor – `groupDuplicates` finns, används inte
 - [ ] Utred Operan, Fotografiska, Moderna Museet, Stockholm Live och Debaser.
       Bara deras listsidor har testats, vilket inte säger något

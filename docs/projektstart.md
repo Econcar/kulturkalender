@@ -76,6 +76,14 @@ Tre extraktionsnivåer, alla tre verifierade:
    sidan i `__NEXT_DATA__` – med tolv föreställningsdatum, speltid, medverkande
    och kategorier. Rikare än deras `ld+json` hade varit. Egen tolkning, men JSON
    och inte HTML.
+
+   Adaptern visade att nivå 2 är *bättre* än nivå 1 för scenkonst, inte sämre.
+   Varje föreställning har eget id, eget datum och egen biljettlänk, så en
+   uppsättning ger en rad per kväll – medan Kulturhusets `ld+json` bara ger
+   premiär och derniär som ett spann. Hämtningen är dessutom billigare:
+   `/repertoar` bär hela programmet i en payload, alltså 31 anrop för hela
+   huset. Priset saknas däremot helt, och adaptern skriver `null` i stället
+   för att gissa.
 3. **`og:`-taggar och URL-mönster.** Konserthuset har varken `ld+json` eller
    sitemap. Men `og:title` lyder `"Schumanns tredje symfoni 2026-09-16 kl 18.00"`
    och slugen bär `20260916-1800`, vilket ger både en exakt tid och ett stabilt
