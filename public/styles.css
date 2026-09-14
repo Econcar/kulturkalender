@@ -50,6 +50,53 @@ main { max-width: 46rem; margin: 0 auto; }
   border: 0;
 }
 
+/* --- Husen vi bevakar ---------------------------------------------------- */
+
+.venues { margin: 0 0 1.25rem; }
+
+.venueshead {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.venuelist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.venue {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+.venue:hover { border-color: var(--accent); }
+.venue[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.venuename { font-weight: 600; }
+
+.venuecount {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.venue[aria-pressed="true"] .venuecount { color: var(--accent); }
+
 /* --- Sök och filter ------------------------------------------------------ */
 
 .search {

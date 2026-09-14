@@ -97,8 +97,19 @@ create table if not exists public.events (
   constraint events_slutar_efter_start check (ends_at is null or ends_at >= starts_at)
 );
 
+-- Separat alter, inte en kolumn i create table ovan: tabellen kan redan finnas,
+-- och `create table if not exists` lägger inte till kolumner i en befintlig.
+-- Samma mönster som receptboken använde när ingredienstolkningen tillkom.
+--
+-- organizer är arrangören som källan anger den – "Kulturhuset Stadsteatern".
+-- Den fyllde inget syfte förrän vyn behövde visa huset, och saknades därför
+-- i tabellen trots att lib/event.mjs alltid returnerat den. En skarp körning
+-- hade gett 400 från PostgREST på en okänd kolumn.
+alter table public.events add column if not exists organizer text;
+
 -- Listan sorteras alltid på starttid och filtreras oftast på kategori.
 create index if not exists events_starts_at_idx on public.events (starts_at);
+create index if not exists events_source_starts_idx on public.events (source, starts_at);
 create index if not exists events_category_starts_idx on public.events (category, starts_at);
 create index if not exists events_venue_idx on public.events (venue_id);
 
@@ -133,10 +144,48 @@ create index if not exists scan_runs_source_started_idx
   on public.scan_runs (source, started_at desc);
 
 -- ---------------------------------------------------------------------------
+-- Husen
+-- ---------------------------------------------------------------------------
+
+-- En rad per institution vi hämtar från. slug MÅSTE vara samma sträng som
+-- adapterns id i scanner/sources/index.mjs – det är den kopplingen vyerna
+-- nedan joinar på, och tests/venues.test.mjs kräver att de stämmer överens.
+--
+-- Fylls för hand med flit. Det är ett trettiotal hus i Stockholm som spelar
+-- roll, de byter inte namn, och en handskriven rad ger ett läsbart namn och en
+-- riktig position i stället för det källan råkar skriva i sin ld+json.
+--
+-- on conflict do update, inte do nothing: rättar man ett namn här ska det slå
+-- igenom vid nästa körning av skriptet i stället för att tyst ignoreras.
+insert into public.venues (slug, name, url, address, lat, lng) values
+  ('kulturhuset', 'Kulturhuset Stadsteatern', 'https://kulturhusetstadsteatern.se',
+   'Sergels torg, 111 57 Stockholm', 59.331700, 18.063700),
+  ('dramaten',    'Dramaten', 'https://www.dramaten.se',
+   'Nybroplan, 111 47 Stockholm', 59.331900, 18.077600)
+on conflict (slug) do update
+  set name = excluded.name,
+      url = excluded.url,
+      address = excluded.address,
+      lat = excluded.lat,
+      lng = excluded.lng;
+
+-- ---------------------------------------------------------------------------
 -- Vyer
 -- ---------------------------------------------------------------------------
 
--- Det sidan faktiskt visar: kommande, inte inställda, med scenens namn ifyllt.
+-- Det sidan faktiskt visar: kommande, inte inställda, med huset ifyllt.
+--
+-- Två olika saker heter "scen" på svenska och blandas lätt ihop:
+--   venue = huset, institutionen. "Dramaten", "Kulturhuset Stadsteatern".
+--   stage = rummet i huset. "Stora scenen", "Studion, plan 1", "Galleri 3".
+-- Besökaren väljer hus och hittar sedan rummet på plats, så huset är det som
+-- ska stå först i listan. Rummet är precisering, inte identitet.
+--
+-- Joinen går på v.slug = e.source och inte på e.venue_id: en källa ÄR ett hus.
+-- Det finns en adapter per institution, adapterns id är husets slug, och
+-- venues-raden bär det läsbara namnet och adressen. venue_id ligger kvar för
+-- den dagen ett evenemang behöver pekas till en annan plats än sin källas –
+-- en gästspelsscen, en utomhusspelplats – men används inte i dag.
 --
 -- security_invoker gör att vyn läses med anroparens rättigheter och inte med
 -- ägarens. Utan den kringgår vyn RLS på tabellerna under, vilket är ofarligt så
@@ -154,9 +203,10 @@ select
   e.image_url,
   e.category,
   e.genre,
-  coalesce(v.name, e.venue_raw) as venue,
-  v.slug                        as venue_slug,
-  coalesce(v.address, e.address) as address,
+  coalesce(hus.name, e.organizer, e.source) as venue,
+  hus.slug                                  as venue_slug,
+  e.venue_raw                               as stage,
+  coalesce(rum.address, hus.address, e.address) as address,
   e.starts_at,
   e.ends_at,
   e.price_min,
@@ -169,9 +219,33 @@ select
   -- double finns inte i Postgres. Samma fälla som medianen i leasingprojektet.
   (date_part('day', e.starts_at - now()))::integer as days_until
 from public.events e
-left join public.venues v on v.id = e.venue_id
+left join public.venues hus on hus.slug = e.source
+left join public.venues rum on rum.id = e.venue_id
 where e.starts_at >= now() - interval '3 hours'  -- pågående räknas som kommande
   and e.status <> 'cancelled';
+
+-- Husen med hur mycket som är på gång. Driver listan högst upp på förstasidan,
+-- så att besökaren ser vilka scener sidan faktiskt bevakar – och därmed också
+-- vilka den inte bevakar, vilket är minst lika ärligt.
+--
+-- left join, inte inner: ett hus vars adapter gått sönder ska synas med noll
+-- och inte försvinna ur listan. Att tappa Dramaten helt vore ett tystare fel
+-- än att visa "Dramaten 0".
+drop view if exists public.venue_summary;
+create view public.venue_summary
+with (security_invoker = true) as
+select
+  v.slug,
+  v.name,
+  v.url,
+  count(e.id)::integer as upcoming_count,
+  min(e.starts_at)     as next_at
+from public.venues v
+left join public.events e
+  on e.source = v.slug
+ and e.starts_at >= now() - interval '3 hours'
+ and e.status <> 'cancelled'
+group by v.slug, v.name, v.url;
 
 -- ---------------------------------------------------------------------------
 -- RLS
@@ -213,7 +287,7 @@ create policy "driftloggen är läsbar för alla"
 -- ett "permission denied" innan policyn ens körs.
 grant usage on schema public to anon, authenticated;
 grant select on public.venues, public.events, public.scan_runs to anon, authenticated;
-grant select on public.upcoming_events to anon, authenticated;
+grant select on public.upcoming_events, public.venue_summary to anon, authenticated;
 
 -- Ingen av rollerna får skriva. Uttalat, inte underförstått.
 revoke insert, update, delete on public.venues    from anon, authenticated;

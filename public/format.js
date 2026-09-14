@@ -64,6 +64,23 @@ function tal(n) {
 }
 
 /**
+ * Huset och rummet som en rad: "Dramaten, Stora scenen".
+ *
+ * Huset först, för det är det besökaren väljer – rummet hittar man på plats.
+ * Är de samma sträng skrivs den en gång: Kulturhuset har evenemang där rummet
+ * inte är utsatt, och "Kulturhuset Stadsteatern, Kulturhuset Stadsteatern"
+ * ser ut som ett fel även när det inte är det.
+ */
+export function venueLabel(venue, stage) {
+  const hus = String(venue ?? '').trim();
+  const rum = String(stage ?? '').trim();
+
+  if (!hus) return rum;
+  if (!rum || rum.toLowerCase() === hus.toLowerCase()) return hus;
+  return `${hus}, ${rum}`;
+}
+
+/**
  * Förkortar en beskrivning till ett utdrag.
  *
  * Vi återpublicerar inte arrangörens hela text – se avsnitt 7 i

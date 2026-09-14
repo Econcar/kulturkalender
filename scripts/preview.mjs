@@ -16,7 +16,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { applyFilters, upcomingEvents } from '../lib/upcoming.mjs';
+import { applyFilters, upcomingEvents, venueSummary } from '../lib/upcoming.mjs';
 
 const rot = fileURLToPath(new URL('..', import.meta.url));
 const PUBLIC = join(rot, 'public');
@@ -38,12 +38,32 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
   if (url.pathname === '/api/events') return events(url, res);
+  if (url.pathname === '/api/venues') return venues(res);
   if (url.pathname === '/api/health') {
     return json(res, { ok: true, time: new Date().toISOString(), supabase_configured: false });
   }
 
   await statisk(url, res);
 });
+
+async function venues(res) {
+  // upcomingEvents först: vyn venue_summary räknar bara kommande, inte
+  // inställda. Räknar man råraderna får husen med sig hela sin historik.
+  const sammanställning = venueSummary(upcomingEvents(await läsData()));
+  json(res, {
+    generated_at: new Date().toISOString(),
+    count: sammanställning.length,
+    venues: sammanställning,
+  });
+}
+
+async function läsData() {
+  try {
+    return JSON.parse(await readFile(DATA, 'utf8'));
+  } catch {
+    return [];
+  }
+}
 
 async function events(url, res) {
   const p = url.searchParams;

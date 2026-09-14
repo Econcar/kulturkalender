@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { applyFilters, toViewRow, upcomingEvents } from '../lib/upcoming.mjs';
+import { applyFilters, toViewRow, upcomingEvents, venueSummary } from '../lib/upcoming.mjs';
 
 const rot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const läs = (fil) => readFileSync(join(rot, fil), 'utf8');
@@ -86,18 +86,58 @@ test('passerade faller bort, men pågående är kvar i tre timmar', () => {
   assert.deepEqual(ut.map((r) => r.id.split('|')[1]), ['nyss', 'strax']);
 });
 
-test('scenen slås upp när den är kopplad, annars används källans text', () => {
-  const venues = [{ id: 'v1', name: 'Kulturhuset Stadsteatern', slug: 'kulturhuset', address: 'Sergels torg 3' }];
+test('huset slås upp på källan, och rummet står kvar för sig', () => {
+  // De två sakerna som båda heter "scen": huset man går till och rummet man
+  // sitter i. Blandas de ihop står det "Stora scenen" i listan utan att det
+  // framgår att det är Dramatens.
+  const venues = [{ slug: 'kulturhuset', name: 'Kulturhuset Stadsteatern', address: 'Sergels torg 3' }];
 
-  const kopplad = upcomingEvents([rad({ venue_id: 'v1' })], { venues, now: NU })[0];
-  assert.equal(kopplad.venue, 'Kulturhuset Stadsteatern');
-  assert.equal(kopplad.venue_slug, 'kulturhuset');
-  assert.equal(kopplad.address, 'Sergels torg 3');
+  const [r] = upcomingEvents([rad()], { venues, now: NU });
+  assert.equal(r.venue, 'Kulturhuset Stadsteatern');
+  assert.equal(r.venue_slug, 'kulturhuset');
+  assert.equal(r.stage, 'Studion');
+  assert.equal(r.address, 'Sergels torg 3');
+});
 
-  const okopplad = upcomingEvents([rad()], { venues, now: NU })[0];
-  assert.equal(okopplad.venue, 'Studion');
-  assert.equal(okopplad.venue_slug, null);
-  assert.equal(okopplad.address, 'Sergels torg, Stockholm');
+test('en källa utan registrerat hus faller tillbaka, den försvinner inte', () => {
+  const [r] = upcomingEvents([rad({ source: 'okänd', organizer: 'Någon Scen' })], {
+    venues: [], now: NU,
+  });
+
+  assert.equal(r.venue, 'Någon Scen');
+  assert.equal(r.venue_slug, null);
+  assert.equal(r.stage, 'Studion');
+});
+
+test('utan både hus och arrangör används källans id, aldrig tomt', () => {
+  const [r] = upcomingEvents([rad({ source: 'nyscen', organizer: undefined })], {
+    venues: [], now: NU,
+  });
+  assert.equal(r.venue, 'nyscen');
+});
+
+test('husen sammanställs med antal, och noll skrivs ut', () => {
+  const venues = [
+    { slug: 'kulturhuset', name: 'Kulturhuset Stadsteatern' },
+    { slug: 'dramaten', name: 'Dramaten' },
+  ];
+  const rader = upcomingEvents([
+    rad({ external_id: 'a' }),
+    rad({ external_id: 'b', starts_at: om(48) }),
+  ], { venues, now: NU });
+
+  const sammanställning = venueSummary(rader, { venues });
+
+  assert.equal(sammanställning.length, 2);
+  const kh = sammanställning.find((v) => v.slug === 'kulturhuset');
+  assert.equal(kh.upcoming_count, 2);
+  assert.equal(kh.next_at, rader[0].starts_at);
+
+  // Dramaten har inga rader men ska ändå stå i listan. Ett hus som tappas helt
+  // ser ut som att vi inte bevakar det.
+  const dr = sammanställning.find((v) => v.slug === 'dramaten');
+  assert.equal(dr.upcoming_count, 0);
+  assert.equal(dr.next_at, null);
 });
 
 test('listan kommer i tidsordning', () => {
@@ -118,17 +158,20 @@ test('kategorifiltret plockar rätt rader', () => {
   assert.equal(applyFilters(rader, {}).length, 2);
 });
 
-test('sökningen träffar titel, beskrivning och scen', () => {
+test('sökningen träffar titel, beskrivning, hus och rum', () => {
   const rader = upcomingEvents([
     rad({ external_id: 'a', title: 'Trollflöjten' }),
     rad({ external_id: 'b', description: 'En kväll med Mozart' }),
-    rad({ external_id: 'c', venue_raw: 'Konserthuset' }),
+    rad({ external_id: 'c', venue_raw: 'Lejonkulan' }),
     rad({ external_id: 'd', title: 'Något annat' }),
   ], { now: NU });
 
   assert.equal(applyFilters(rader, { q: 'trollflöjten' }).length, 1);
   assert.equal(applyFilters(rader, { q: 'mozart' }).length, 1);
-  assert.equal(applyFilters(rader, { q: 'konserthuset' }).length, 1);
+  // Rummet ska gå att söka på, inte bara huset: den som söker "Lejonkulan"
+  // letar efter samma sorts sak som den som söker "Dramaten".
+  assert.equal(applyFilters(rader, { q: 'lejonkulan' }).length, 1);
+  assert.equal(applyFilters(rader, { q: 'kulturhuset' }).length, 4);
   // Ett tecken söker inte – samma gräns som functions/api/events.js.
   assert.equal(applyFilters(rader, { q: 't' }).length, 4);
 });

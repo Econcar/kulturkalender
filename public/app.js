@@ -4,8 +4,8 @@
 // Därför inget session.js, ingen Supabase-klient i webbläsaren, och inget
 // tillstånd att hålla reda på utöver de filter som står i adressfältet.
 
-import { fetchEvents } from '/api.js';
-import { groupByDay, price, time, utdrag } from '/format.js';
+import { fetchEvents, fetchVenues } from '/api.js';
+import { groupByDay, price, time, utdrag, venueLabel } from '/format.js';
 import { VERSION } from '/version.js';
 
 // Måste täcka alla värden CATEGORIES i lib/event.mjs kan ge, annars blir en
@@ -33,6 +33,8 @@ const SIDSTORLEK = 60;
 const el = {
   search: document.getElementById('search'),
   filters: document.getElementById('filters'),
+  venues: document.getElementById('venues'),
+  venuelist: document.getElementById('venuelist'),
   status: document.getElementById('status'),
   results: document.getElementById('results'),
   more: document.getElementById('more'),
@@ -43,6 +45,7 @@ const el = {
 // lista går att länka och att bakåtknappen gör det man tror.
 const state = läsUrl();
 let laddade = [];
+let scener = [];
 
 init();
 
@@ -73,10 +76,62 @@ function init() {
     Object.assign(state, läsUrl());
     el.search.value = state.q;
     ritaFilter();
+    ritaScener();
     hämta({ ersätt: true });
   });
 
   hämta({ ersätt: true });
+  hämtaScener();
+}
+
+/**
+ * Husen vi bevakar, högst upp på sidan.
+ *
+ * Listan säger lika mycket om vad sidan INTE täcker som om vad den täcker.
+ * En besökare som inte hittar sin konsert ska kunna se på en gång att vi inte
+ * läser den scenen, i stället för att tro att det inte spelas något.
+ */
+async function hämtaScener() {
+  scener = await fetchVenues();
+  ritaScener();
+}
+
+function ritaScener() {
+  if (!scener.length) {
+    el.venues.hidden = true;
+    return;
+  }
+  el.venues.hidden = false;
+
+  const frag = document.createDocumentFragment();
+  for (const hus of scener) {
+    const knapp = document.createElement('button');
+    knapp.type = 'button';
+    knapp.className = 'venue';
+    knapp.setAttribute('aria-pressed', String(state.venue === hus.slug));
+
+    const namn = document.createElement('span');
+    namn.className = 'venuename';
+    namn.textContent = hus.name;
+    knapp.append(namn);
+
+    const antal = document.createElement('span');
+    antal.className = 'venuecount';
+    // Noll skrivs ut. Ett hus vars adapter gått sönder ska synas som tomt och
+    // inte försvinna ur listan – ett tyst bortfall är svårare att upptäcka.
+    antal.textContent = hus.upcoming_count === 0 ? 'inget just nu' : `${hus.upcoming_count}`;
+    knapp.append(antal);
+
+    knapp.addEventListener('click', () => {
+      state.venue = state.venue === hus.slug ? '' : hus.slug;
+      state.offset = 0;
+      skrivUrl();
+      ritaScener();
+      hämta({ ersätt: true });
+    });
+    frag.append(knapp);
+  }
+  el.venuelist.replaceChildren(frag);
 }
 
 async function hämta({ ersätt, tyst = false } = {}) {
@@ -92,7 +147,7 @@ async function hämta({ ersätt, tyst = false } = {}) {
     el.more.hidden = data.events.length < SIDSTORLEK;
 
     if (!laddade.length) {
-      sätt(state.q || state.category
+      sätt(state.q || state.category || state.venue
         ? 'Inget matchade filtret.'
         : 'Inga evenemang inlagda ännu. Skannern har inte körts.', 'warn');
     } else {
@@ -150,9 +205,11 @@ function kort(event) {
   titel.append(länk);
   kropp.append(titel);
 
-  const rad = [time(event.starts_at), event.venue, price(event.price_min, event.price_max, event.currency)]
-    .filter(Boolean)
-    .join(' · ');
+  const rad = [
+    time(event.starts_at),
+    venueLabel(event.venue, event.stage),
+    price(event.price_min, event.price_max, event.currency),
+  ].filter(Boolean).join(' · ');
   const fakta = document.createElement('p');
   fakta.className = 'facts';
   fakta.textContent = rad;
@@ -201,6 +258,7 @@ function läsUrl() {
   const p = new URLSearchParams(location.search);
   return {
     category: p.get('kategori') ?? '',
+    venue: p.get('scen') ?? '',
     q: p.get('sok') ?? '',
     offset: 0,
   };
@@ -209,6 +267,7 @@ function läsUrl() {
 function skrivUrl() {
   const p = new URLSearchParams();
   if (state.category) p.set('kategori', state.category);
+  if (state.venue) p.set('scen', state.venue);
   if (state.q) p.set('sok', state.q);
   const fråga = p.toString();
   history.replaceState(null, '', fråga ? `?${fråga}` : location.pathname);

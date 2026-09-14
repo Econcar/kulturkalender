@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildQuery, fetchEvents, parseResponse } from '../public/api.js';
+import { buildQuery, fetchEvents, fetchVenues, parseResponse } from '../public/api.js';
 
 /** Ett minimalt svar med bara det parseResponse tittar på. */
 const svar = ({ ok = true, status = 200, type = 'application/json; charset=utf-8', body = { events: [] } } = {}) => ({
@@ -56,6 +56,35 @@ test('ett svar utan events-lista avvisas', async () => {
 test('ett giltigt svar släpps igenom', async () => {
   const data = await parseResponse(svar({ body: { count: 1, events: [{ title: 'Parzival' }] } }));
   assert.equal(data.events[0].title, 'Parzival');
+});
+
+test('scenfiltret kommer med i frågan', () => {
+  const q = new URLSearchParams(buildQuery({ venue: 'dramaten' }));
+  assert.equal(q.get('venue'), 'dramaten');
+  assert.equal(new URLSearchParams(buildQuery({ venue: '' })).get('venue'), null);
+});
+
+test('husen hämtas som en egen lista', async () => {
+  let hämtad = null;
+  const venues = await fetchVenues({
+    fetchImpl: async (url) => {
+      hämtad = url;
+      return svar({ body: { venues: [{ slug: 'dramaten', name: 'Dramaten', upcoming_count: 442 }] } });
+    },
+  });
+
+  assert.equal(hämtad, '/api/venues');
+  assert.equal(venues[0].name, 'Dramaten');
+});
+
+test('faller huslistan bort fungerar sidan ändå', async () => {
+  // Listan är en upplysning, inte en förutsättning för att läsa evenemangen.
+  // Att fälla hela sidan på den vore att låta det mindre viktiga stoppa det
+  // viktiga.
+  assert.deepEqual(await fetchVenues({ fetchImpl: async () => { throw new Error('nätet nere'); } }), []);
+  assert.deepEqual(await fetchVenues({ fetchImpl: async () => svar({ ok: false, status: 502 }) }), []);
+  assert.deepEqual(await fetchVenues({ fetchImpl: async () => svar({ type: 'text/html' }) }), []);
+  assert.deepEqual(await fetchVenues({ fetchImpl: async () => svar({ body: { fel: 1 } }) }), []);
 });
 
 test('fetchEvents sätter ihop adressen och läser svaret', async () => {

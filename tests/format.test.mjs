@@ -1,7 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { dayKey, dayHeading, groupByDay, price, time, utdrag } from '../public/format.js';
+import { dayKey, dayHeading, groupByDay, price, time, utdrag, venueLabel } from '../public/format.js';
+
+test('huset skrivs före rummet', () => {
+  assert.equal(venueLabel('Dramaten', 'Stora scenen'), 'Dramaten, Stora scenen');
+  assert.equal(venueLabel('Kulturhuset Stadsteatern', 'Studion, plan 1'),
+    'Kulturhuset Stadsteatern, Studion, plan 1');
+});
+
+test('saknas rummet skrivs bara huset', () => {
+  assert.equal(venueLabel('Dramaten', null), 'Dramaten');
+  assert.equal(venueLabel('Dramaten', ''), 'Dramaten');
+  assert.equal(venueLabel('Dramaten', '   '), 'Dramaten');
+});
+
+test('samma namn två gånger skrivs en gång', () => {
+  // Kulturhuset har evenemang där rummet inte är utsatt och källan upprepar
+  // husets namn. "Kulturhuset, Kulturhuset" ser ut som ett fel.
+  assert.equal(venueLabel('Kulturhuset', 'Kulturhuset'), 'Kulturhuset');
+  assert.equal(venueLabel('Dramaten', 'dramaten'), 'Dramaten');
+});
+
+test('saknas huset duger rummet', () => {
+  assert.equal(venueLabel(null, 'Stora scenen'), 'Stora scenen');
+  assert.equal(venueLabel(null, null), '');
+});
 
 test('tiden visas som svensk tid, inte som UTC', () => {
   // API:et lämnar UTC. Står det 18:00Z i databasen ska listan säga 20:00 –

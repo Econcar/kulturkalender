@@ -3,9 +3,10 @@
 // node --test.
 
 /** Frågesträngen till /api/events. Tomma filter utelämnas helt. */
-export function buildQuery({ category = '', q = '', offset = 0, limit = 60 } = {}) {
+export function buildQuery({ category = '', venue = '', q = '', offset = 0, limit = 60 } = {}) {
   const p = new URLSearchParams({ limit: String(limit) });
   if (category) p.set('category', category);
+  if (venue) p.set('venue', venue);
   if (q) p.set('q', q);
   if (offset) p.set('offset', String(offset));
   return p.toString();
@@ -20,7 +21,7 @@ export function buildQuery({ category = '', q = '', offset = 0, limit = 60 } = {
  * kastar "Unexpected token '<'" – ett felmeddelande som pekar åt fel håll och
  * kostar en kväll att förstå. Hellre säga vad som faktiskt är fel.
  */
-export async function parseResponse(res) {
+export async function parseResponse(res, { nyckel = 'events' } = {}) {
   if (!res.ok) {
     throw new Error(`servern svarade ${res.status}`);
   }
@@ -37,8 +38,8 @@ export async function parseResponse(res) {
     throw new Error('API:et svarade trasig JSON');
   }
 
-  if (!data || !Array.isArray(data.events)) {
-    throw new Error('svaret saknade en events-lista');
+  if (!data || !Array.isArray(data[nyckel])) {
+    throw new Error(`svaret saknade en ${nyckel}-lista`);
   }
   return data;
 }
@@ -47,4 +48,21 @@ export async function parseResponse(res) {
 export async function fetchEvents(state, { limit = 60, fetchImpl = fetch } = {}) {
   const res = await fetchImpl(`/api/events?${buildQuery({ ...state, limit })}`);
   return parseResponse(res);
+}
+
+/**
+ * Husen sidan hämtar från.
+ *
+ * Faller listan bort ska sidan fungera ändå – den är en upplysning, inte en
+ * förutsättning för att läsa evenemangen. Därför tom lista i stället för att
+ * kasta vidare.
+ */
+export async function fetchVenues({ fetchImpl = fetch } = {}) {
+  try {
+    const res = await fetchImpl('/api/venues');
+    const data = await parseResponse(res, { nyckel: 'venues' });
+    return data.venues;
+  } catch {
+    return [];
+  }
 }

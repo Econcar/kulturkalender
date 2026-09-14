@@ -38,8 +38,12 @@ export async function onRequestGet({ request, env }) {
   const to = (params.get('to') || '').trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(to)) query.append('starts_at', `lte.${to}T23:59:59Z`);
 
+  // Sökningen täcker både huset och rummet: den som söker "Dramaten" och den
+  // som söker "Lejonkulan" letar efter samma sorts sak.
   const term = searchTerm(params.get('q'));
-  if (term) query.append('or', `(title.ilike.*${term}*,description.ilike.*${term}*,venue.ilike.*${term}*)`);
+  if (term) {
+    query.append('or', `(title.ilike.*${term}*,description.ilike.*${term}*,venue.ilike.*${term}*,stage.ilike.*${term}*)`);
+  }
 
   try {
     const events = await supabaseRest(env, `upcoming_events?${query}`);
