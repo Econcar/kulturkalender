@@ -1,15 +1,15 @@
 name: Skanna evenemang
 
 on:
-  # Schemat är avstängt tills första adaptern finns. En cron som kör ett tomt
-  # källregister varje natt fyller bara scan_runs med rader som inte betyder
-  # något. Ta bort kommentaren när scanner/sources/index.mjs har en källa.
-  #
-  # schedule:
-  #   # 04:12 UTC varje natt. Evenemangsprogram ändras i dagsskala, inte i
-  #   # timskala – att skanna oftare belastar scenernas sidor utan att göra
-  #   # listan bättre. GitHub kör i UTC och kan försena körningar vid hög last.
-  #   - cron: '12 4 * * *'
+  schedule:
+    # 04:12 UTC varje natt, alltså 06:12 svensk sommartid och 05:12 vintertid.
+    # Evenemangsprogram ändras i dagsskala, inte i timskala – att skanna oftare
+    # belastar scenernas sidor utan att göra listan bättre.
+    #
+    # Udda minuttal med flit: GitHub kör i UTC, köar allt som står på hel timme,
+    # och kan försena schemalagda körningar vid hög last. Raden högst upp på
+    # sidan visar när det senast hämtades, så en utebliven körning syns.
+    - cron: '12 4 * * *'
   workflow_dispatch:
     inputs:
       sources:
