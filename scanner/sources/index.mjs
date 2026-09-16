@@ -16,13 +16,24 @@
 //                    poängen: adaptermönstret bär en källa utan ld+json, och
 //                    ger dessutom enskilda föreställningar i stället för hela
 //                    speltider.
-//   'konserthuset' – og:-taggar och URL-mönster. Den tunnaste av de tre, och
-//                    därför den som visar var gränsen går.
+//   'konserthuset' – utpekad som den tunnaste av de tre, men visade sig vara
+//                    den rikaste: kalendern är märkt med mikrodata och bär
+//                    både pris och sluttid, vilket varken Kulturhuset eller
+//                    Dramaten ger. Undersökningen hade tittat på detaljsidan,
+//                    inte på listan. Byggd.
+
+//   'operan'       – bokfördes som omöjlig: sidorna bär varken ld+json,
+//                    mikrodata eller datum. Datan ligger i ett eget JSON-API
+//                    på webapi.operan.se, som bara refereras från en chunk
+//                    huvudbunten importerar. Byggd, och den renaste källan av
+//                    alla fyra.
 
 import kulturhuset from './kulturhuset.mjs';
 import dramaten from './dramaten.mjs';
+import konserthuset from './konserthuset.mjs';
+import operan from './operan.mjs';
 
-const sources = [kulturhuset, dramaten];
+const sources = [kulturhuset, dramaten, konserthuset, operan];
 
 export default sources;
 

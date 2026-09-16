@@ -161,7 +161,11 @@ insert into public.venues (slug, name, url, address, lat, lng) values
   ('kulturhuset', 'Kulturhuset Stadsteatern', 'https://kulturhusetstadsteatern.se',
    'Sergels torg, 111 57 Stockholm', 59.331700, 18.063700),
   ('dramaten',    'Dramaten', 'https://www.dramaten.se',
-   'Nybroplan, 111 47 Stockholm', 59.331900, 18.077600)
+   'Nybroplan, 111 47 Stockholm', 59.331900, 18.077600),
+  ('konserthuset', 'Konserthuset Stockholm', 'https://www.konserthuset.se',
+   'Hötorget 8, 111 57 Stockholm', 59.334500, 18.063200),
+  ('operan',      'Kungliga Operan', 'https://www.operan.se',
+   'Gustav Adolfs torg 2, 111 52 Stockholm', 59.329700, 18.070700)
 on conflict (slug) do update
   set name = excluded.name,
       url = excluded.url,
@@ -239,7 +243,12 @@ select
   v.name,
   v.url,
   count(e.id)::integer as upcoming_count,
-  min(e.starts_at)     as next_at
+  min(e.starts_at)     as next_at,
+  -- När skannern senast såg huset. Driver raden högst upp på sidan, som säger
+  -- hur färska uppgifterna är. Aggregatet går över samma join som antalet:
+  -- vad SQL-vyn och lib/upcoming.mjs räknar ska vara samma sak, annars visar
+  -- det lokala läget en annan siffra än drift.
+  max(e.last_seen_at)  as last_scan_at
 from public.venues v
 left join public.events e
   on e.source = v.slug

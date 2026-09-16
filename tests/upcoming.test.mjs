@@ -140,6 +140,39 @@ test('husen sammanställs med antal, och noll skrivs ut', () => {
   assert.equal(dr.next_at, null);
 });
 
+test('husen bär med sig när de senast hämtades', () => {
+  // Raden högst upp på sidan hämtar sin tid härifrån. Faller fältet bort står
+  // det bara ett datum där, och sidan slutar säga hur gamla uppgifterna är –
+  // ett bortfall som inte syns som ett fel.
+  const venues = [
+    { slug: 'kulturhuset', name: 'Kulturhuset Stadsteatern' },
+    { slug: 'dramaten', name: 'Dramaten' },
+  ];
+  const rader = upcomingEvents([
+    rad({ external_id: 'a', last_seen_at: '2026-09-13T02:10:00.000Z' }),
+    rad({ external_id: 'b', last_seen_at: '2026-09-14T02:10:00.000Z' }),
+  ], { venues, now: NU });
+
+  const sammanställning = venueSummary(rader, { venues });
+
+  // Den senaste av husets rader, precis som max(e.last_seen_at) i vyn.
+  assert.equal(sammanställning.find((v) => v.slug === 'kulturhuset').last_scan_at,
+    '2026-09-14T02:10:00.000Z');
+  // Ett hus utan rader vet vi ingenting om. Null, inte dagens datum.
+  assert.equal(sammanställning.find((v) => v.slug === 'dramaten').last_scan_at, null);
+});
+
+test('last_scan_at finns i SQL-vyn och inte bara i JS', () => {
+  // Samma sorts spärr som fältkontrollen för upcoming_events ovan. Fältet
+  // driver raden högst upp på sidan; finns det bara i det lokala läget står
+  // det inget om färskhet i drift, och tomrummet ser ut som ett designval.
+  const sql = läs('db/schema.sql');
+  assert.ok(sql.includes('as last_scan_at'), 'venue_summary i db/schema.sql saknar last_scan_at');
+
+  const [hus] = venueSummary([], { venues: [{ slug: 'x', name: 'X' }] });
+  assert.ok('last_scan_at' in hus, 'venueSummary saknar last_scan_at');
+});
+
 test('listan kommer i tidsordning', () => {
   const rader = [
     rad({ external_id: 'sen', starts_at: om(72) }),
