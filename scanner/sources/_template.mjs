@@ -18,13 +18,22 @@
 //   2. Inbäddad JSON         – Dramaten lägger hela sidan i __NEXT_DATA__, med
 //      ett performances[] som är rikare än deras ld+json hade varit. Egen
 //      tolkning, men JSON och inte HTML.
-//   3. og:-taggar + URL      – Konserthuset har varken ld+json eller sitemap,
-//      men og:title lyder "Titel 2026-09-16 kl 18.00" och slugen bär
-//      20260916-1800. Räcker till titel, tid, bild och länk. Inte mer.
+//   3. og:-taggar + URL      – sista utvägen. Titel, tid, bild och länk, inte
+//      mer. Konserthusets detaljsidor ser ut så här.
 //
 // Börja alltid med att leta efter nivå 1. Faller den bort är nivå 3 sista
 // utvägen, och då ska adaptern säga vad den inte kan få fram i stället för att
 // gissa.
+//
+//   4. Eget JSON-API           – Kungliga Operan. Sidorna bär ingenting alls,
+//      men webapi.operan.se svarar med speltillfällen i ren JSON. Adressen
+//      stod i en chunk som huvudbunten importerar, inte i bunten själv.
+//
+// Men leta på rätt sida först. Konserthuset bokfördes som nivå 3 därför att
+// undersökningen läste en evenemangssida. Husets *kalender* är märkt med
+// mikrodata och bär både pris och sluttid, och knappen "Visa fler" är en
+// JSON-ändpunkt som ger hela programmet i sex anrop. Listsidan och detaljsidan
+// kan vara olika nivåer, och den rikare av dem är den som räknas.
 
 import { fetchText, isAllowedByRobots, sleep } from '../../lib/http.mjs';
 import { eventsFromHtml } from '../../lib/event.mjs';

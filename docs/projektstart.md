@@ -90,6 +90,65 @@ Tre extraktionsnivåer, alla tre verifierade:
    `external_id`. Räcker till titel, tid, bild och länk. Inte till pris eller
    beskrivning.
 
+**Rättelse 2026-09-15, när adaptern byggdes.** Nivå 3 gäller Konserthusets
+*detaljsidor*, och adaptern behöver aldrig besöka dem. Kalendern på
+`/program-och-biljetter/kalender/` är serverrenderad och märkt med **mikrodata**:
+varje kort är ett `itemscope itemtype="schema.org/MusicEvent"` med itemprop för
+name, description, image, startDate, endDate och location, plus pris i klartext
+och biljettlänk. Konserthuset är alltså husets rikaste källa, inte dess
+tunnaste – det är det enda av de tre som ger både pris och sluttid.
+
+Två saker att lära av det:
+
+- **Undersökningen tittade på fel sida.** Listsidan bär aldrig `ld+json`, och
+  slutsatsen "inget strukturerat här" drogs av att detaljsidan saknade det.
+  Att en sajt märker upp *listan* men inte *sidan* är ovanligt men inte konstigt:
+  listan genereras ur databasen, detaljsidan är redigerad text.
+- **Klumpen bakom "Visa fler" är en förklädd API-ändpunkt.** `POST
+  /CalendarSlideBlock/LoadMore/` tar skip och take och svarar med JSON. Hela
+  programmet – 295 föreställningar ut till juni 2027 – kostar sex anrop i
+  stället för 295. Leta efter knappens anrop innan du hämtar en sida i taget.
+
+**Operan, utredd 2026-09-15, byggd 2026-09-16.** Den utredningen drog fel
+slutsats, och felet är lärorikare än resultatet.
+
+Det som stämde: `www.operan.se` bär ingen `ld+json`, ingen mikrodata av typen
+Event och inga datum i markupen. Kalendern skickas som hundra tomma
+platshållare (`class="skeleton"`). Slutsatsen blev "går inte att läsa".
+
+Det som var fel: jag letade efter anropet i sajtens huvudbunt, hittade varken
+`/api/` eller något `fetch` mot ett kalender-slut, och stannade där.
+Huvudbunten importerar en chunk – `assets/ga4-tracking-utils-*.js` – och det är
+**i den** bas-adresserna står. Chunken laddas inte som en egen `<script>`-tagg
+och syns därför inte om man bara listar sidans skript.
+
+Det räckte att titta i webbläsarens nätverksflik för att se `bymonth?date=…` och
+`content?productionIds=…` flyga förbi. **Lärdomen: en tom nätverksflik betyder
+att DevTools öppnades efter laddningen, inte att sidan är statisk.**
+
+Vad som faktiskt finns, och det är mer än något annat hus ger:
+
+```
+https://webapi.operan.se/performances/bymonth?date=ÅÅÅÅ-MM-01
+    speltillfällen: performanceId, productionId, performanceDate, availability,
+    facilityId. En månad per anrop, tolv anrop för hela spelåret.
+
+https://www.operan.se/contentapi/sv/productions/content?productionIds=…
+    namn, adress, beskrivning, genrer, bild – och performanceOverrides, en egen
+    text för enskilda kvällar som nypremiärer.
+
+https://www.operan.se/contentapi/sv/dictionary
+    Facility.17 → "Stora scenen". Salarnas namn ligger i sajtens ordlista.
+```
+
+Rent JSON, ingen HTML-tolkning alls – nivå 0 om skalan hade gått åt det hållet.
+Tiderna är äkta UTC: API:et skriver `2026-09-18T16:15:00+00:00` för den
+föreställning sajten visar som 18:15, vilket stämmer på minuten. Saknas gör
+priset; `availability` är lediga platser, inte kronor, och adaptern skriver
+null i stället för att räkna om det ena till det andra.
+
+Skarp körning: 258 föreställningar, 20 uppsättningar, sju månader med program.
+
 **Slutsatsen:** källorna är ojämna, och en generisk skrapa räcker inte. Därför en
 adapter per scen, med samma kontrakt men egen tolkning – exakt det mönster
 leasingskannern hade. Adaptern ska säga vad den *inte* kan få fram hellre än att
@@ -167,8 +226,15 @@ Hållningen:
 - **Titel, datum, tid, plats och pris är fakta.** De återges rakt av.
 - **Beskrivningen återges som utdrag, aldrig i sin helhet.** `utdrag()` i
   `public/format.js` kapar vid ~180 tecken, och listan visar tre rader.
-- **Varje evenemang länkar till arrangören**, och länken går i första hand till
-  deras biljettsida.
+- **Varje evenemang länkar till arrangören.** Rubriken går till evenemangssidan
+  och biljettköpet ligger som en egen länk bredvid.
+
+  Ordningen var omvänd från början – biljettsidan först. Den ändrades 2026-09-15
+  av ett uppmätt skäl: Konserthusets biljettshop ligger bakom en AWS-WAF som
+  svarar 403 så snart besökarens kakor för domänen passerar 10 KiB, vilket de
+  gör av sig själva efter några besök. Med bara biljettlänken ledde 276 av 295
+  Konserthuset-rader in i en spärrad shop. Två länkar kostar ingenting och gör
+  kortet oberoende av att arrangörens butik fungerar.
 - **Sidfoten säger var uppgifterna kommer ifrån.**
 - **Bilderna hotlänkas till källan** och sparas inte hos oss. Försvinner bilden
   krymper kortet i stället för att visa en trasig ikon – samma beslut som
@@ -186,9 +252,11 @@ argumentera. En adapter är en fil och en rad i `index.mjs`.
 3. **Listsidan på riktigt.** Datumfilter, paginering, tom-tillstånd som säger
    något vettigt.
 4. **Dramaten och Konserthuset.** Bevisar att adaptermönstret bär nivå 2 och 3.
+   ← *klar. Konserthuset blev aldrig nivå 3 – se rättelsen i avsnitt 4.*
 5. **Dubbletter mellan källor.** `groupDuplicates` finns; sidan använder den inte
    ännu.
-6. **Fler scener.** Börja med att faktiskt utreda de fem från avsnitt 4.
+6. **Fler scener.** Operan är byggd 2026-09-16 – se rättelsen i avsnitt 4.
+   Kvar att utreda: Fotografiska, Moderna Museet, Stockholm Live, Debaser.
 
 Fas 2 före fas 3 med flit: en lista med riktiga evenemang i är värd att titta på
 även utan filter, medan ett filter över en tom databas inte går att bedöma.
@@ -217,10 +285,16 @@ Fas 2 före fas 3 med flit: en lista med riktiga evenemang i är värd att titta
 
 ## 10. Öppna beslut
 
-- **Namnet.** `kulturkalender` är valt som arbetsnamn i `package.json` och
-  dokumentationen. Repot heter fortfarande `receptbok` och adressen är
-  `receptbok.pages.dev`. Båda behöver döpas om – i GitHub och i Cloudflare, inte
-  i koden.
+- **Namnet.** ~~Öppet.~~ Avgjort 2026-09-15: `kulturkalender`, samma sträng som
+  `package.json` och user-agenten redan bär. Sidan heter Kulturkalendern i
+  rubriken; identifierare tar inte med bestämd form.
+
+  Koden är omskriven. Kvar är två byten utanför repot, och ordningen spelar
+  roll: **döp om GitHub-repot först**, för user-agenten i `lib/http.mjs` pekar
+  nu på `github.com/Econcar/kulturkalender`, och den adressen är en 404 tills
+  bytet är gjort. Det är adressen scenerna slår upp när de undrar vem som
+  hämtar. Cloudflare-projektet byts sedan när som helst, men den gamla
+  `.pages.dev`-adressen slutar fungera direkt – Cloudflare omdirigerar inte.
 - **Supabase.** `db/drop-receptbok.sql` finns men är inte körd. Receptbokens
   tabeller ligger kvar i projektet. **Exportera recepten först** – de är inmatade
   för hand och går inte att skanna fram igen.

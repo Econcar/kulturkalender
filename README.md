@@ -136,12 +136,26 @@ får innehålla `/rest/v1/`.
       inte sitemapen, som till 80 % är arkiv
 - [x] Adapter för Dramaten – `__NEXT_DATA__` i stället för `ld+json`, och en
       rad per föreställning i stället för ett spann per uppsättning
-- [ ] Adapter för Konserthuset (`og:`-taggar och URL-mönster)
+- [x] Adapter för Konserthuset – kalendern visade sig vara mikrodata och inte
+      `og:`-taggar, så den bär både pris och sluttid. Hela programmet i sex anrop
+- [x] Nattlig skanning påslagen i `.github/workflows/scan.yml` (04:12 UTC)
+- [x] Adapter för Kungliga Operan – rent JSON ur `webapi.operan.se`, som bara
+      refereras från en chunk huvudbunten importerar. Bokfördes först som omöjlig
+- [x] Datumfilter i gränssnittet: i dag, i morgon, i helgen, den här veckan
 - [ ] Fas 5: dubbletter mellan källor – `groupDuplicates` finns, används inte
-- [ ] Utred Operan, Fotografiska, Moderna Museet, Stockholm Live och Debaser.
+- [ ] Utred Fotografiska, Moderna Museet, Stockholm Live och Debaser.
       Bara deras listsidor har testats, vilket inte säger något
 
 ## Namn och adress
 
-Repot heter fortfarande `receptbok` och sidan ligger på `receptbok.pages.dev`.
-Båda behöver döpas om i GitHub respektive Cloudflare – koden är redan omskriven.
+Koden pekar på `kulturkalender`: paketnamnet, och user-agenten i
+`lib/http.mjs` som scenerna ser i sina loggar när skannern hämtar.
+
+Kvar att göra för hand, eftersom de ligger utanför repot:
+
+1. **Döp om repot i GitHub** till `kulturkalender` (Settings → Repository name).
+   GitHub omdirigerar den gamla adressen efteråt, men inte innan – så byt namn
+   **före** nästa push, annars pekar user-agenten på en 404 under tiden.
+2. `git remote set-url origin https://github.com/Econcar/kulturkalender.git`
+3. **Döp om Cloudflare Pages-projektet**, vilket ger `kulturkalender.pages.dev`.
+   Den gamla adressen slutar fungera direkt – Cloudflare omdirigerar inte.
