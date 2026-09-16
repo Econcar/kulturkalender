@@ -16,6 +16,12 @@ const KLOCKAN = new Intl.DateTimeFormat('sv-SE', {
 const DATUMNYCKEL = new Intl.DateTimeFormat('sv-SE', {
   timeZone: ZON, year: 'numeric', month: '2-digit', day: '2-digit',
 });
+const IDAG = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: ZON, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+});
+const DAGMÅNAD = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: ZON, day: 'numeric', month: 'long',
+});
 
 /** "2026-10-17" i Stockholmstid. Nyckeln som dagsgrupperingen bygger på. */
 export function dayKey(iso) {
@@ -36,6 +42,97 @@ export function dayHeading(iso, now = new Date()) {
   if (nyckel === idag) return 'I dag';
   if (nyckel === imorgon) return 'I morgon';
   return DAG.format(d);
+}
+
+/** "Måndag 15 september 2026" – dagens datum, i Stockholmstid. */
+export function today(now = new Date()) {
+  const d = now instanceof Date ? now : new Date(now);
+  if (Number.isNaN(d.getTime())) return '';
+  const text = IDAG.format(d);
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/**
+ * Hela dygn mellan två tidpunkter, räknat i kalenderdagar i Stockholm.
+ *
+ * Skillnaden i millisekunder duger inte: klockan 23:30 i går och 00:30 i dag
+ * är en timme isär men två olika dagar, och det är dagarna besökaren räknar.
+ * Att gå via dygnsnycklarna gör dessutom sommartidsskiftet ofarligt.
+ */
+export function daysSince(iso, now = new Date()) {
+  const då = dayKey(iso);
+  const nu = dayKey(now instanceof Date ? now.toISOString() : now);
+  if (!då || !nu) return null;
+  return Math.round((Date.parse(`${nu}T00:00:00Z`) - Date.parse(`${då}T00:00:00Z`)) / 86_400_000);
+}
+
+/**
+ * När uppgifterna senast hämtades, skrivet så att det går att bedöma.
+ *
+ * Skannern går varje natt. Står det ett datum för en vecka sedan är det inte
+ * en detalj utan ett fel – någon adapter har slutat fungera – och då ska raden
+ * säga hur gammalt det är utan att besökaren behöver räkna dagar i huvudet.
+ * Tom sträng när tiden saknas: då vet vi inte, och att gissa vore värre.
+ */
+export function fetched(iso, now = new Date()) {
+  const d = new Date(iso);
+  if (!iso || Number.isNaN(d.getTime())) return '';
+
+  const dagar = daysSince(iso, now);
+  if (dagar === null || dagar <= 0) return `hämtad i dag ${time(iso)}`;
+  if (dagar === 1) return `hämtad i går ${time(iso)}`;
+  return `hämtad ${DAGMÅNAD.format(d)} – för ${dagar} dagar sedan`;
+}
+
+/**
+ * Perioderna datumfiltret erbjuder, som ett datumspann.
+ *
+ * Returnerar { from, to } på formen ÅÅÅÅ-MM-DD, vilket är exakt vad
+ * /api/events släpper igenom – där prövas de mot ett strikt datummönster,
+ * fyra siffror, två, två, och inget annat. Tom period ger tomma fält, alltså
+ * inget filter alls.
+ *
+ * Allt räknas i Stockholms kalenderdagar. Räknar man i UTC blir "i dag" fel
+ * mellan midnatt och två på natten halva året, och det är just då någon sitter
+ * och letar efter vad som händer i morgon.
+ *
+ * Kvar finns en kant: API:et jämför spannet mot UTC-midnatt, så ett evenemang
+ * som börjar efter midnatt svensk tid räknas till dagen före. Det gäller lika
+ * i drift som lokalt, och scenerna vi läser spelar inte klockan ett på natten.
+ */
+export function dateRange(period, now = new Date()) {
+  const idag = dayKey(now instanceof Date ? now.toISOString() : now);
+  if (!idag || !period) return { from: '', to: '' };
+
+  // 0 = söndag, 6 = lördag. Dygnsnyckeln är ett rent datum, så veckodagen går
+  // att läsa i UTC utan att zonen kan ställa till det.
+  const dag = new Date(`${idag}T00:00:00Z`).getUTCDay();
+
+  switch (period) {
+    case 'idag':
+      return { from: idag, to: idag };
+    case 'imorgon':
+      return { from: plusDagar(idag, 1), to: plusDagar(idag, 1) };
+    case 'helg':
+      // Är det redan helg menas den helg man är i, inte nästa. På en lördag
+      // sträcker den sig till söndag, på en söndag är den slut i kväll.
+      if (dag === 6) return { from: idag, to: plusDagar(idag, 1) };
+      if (dag === 0) return { from: idag, to: idag };
+      return { from: plusDagar(idag, 6 - dag), to: plusDagar(idag, 7 - dag) };
+    case 'vecka':
+      // Härifrån till och med söndag. Inte "sju dagar framåt" – den som
+      // frågar efter den här veckan menar veckan, inte en rullande period.
+      return { from: idag, to: plusDagar(idag, (7 - dag) % 7) };
+    default:
+      return { from: '', to: '' };
+  }
+}
+
+/** Ett datum plus n dygn, fortfarande som ÅÅÅÅ-MM-DD. */
+function plusDagar(nyckel, n) {
+  const d = new Date(`${nyckel}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
 }
 
 /** "20:00" */

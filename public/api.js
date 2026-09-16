@@ -3,11 +3,16 @@
 // node --test.
 
 /** Frågesträngen till /api/events. Tomma filter utelämnas helt. */
-export function buildQuery({ category = '', venue = '', q = '', offset = 0, limit = 60 } = {}) {
+export function buildQuery({ category = '', venue = '', q = '', from = '', to = '', offset = 0, limit = 60 } = {}) {
   const p = new URLSearchParams({ limit: String(limit) });
   if (category) p.set('category', category);
   if (venue) p.set('venue', venue);
   if (q) p.set('q', q);
+  // Datumen skickas som de är. Formen bevakas i functions/api/events.js, som
+  // tyst släpper det som inte ser ut som ett datum – filtret ska inte kunna
+  // bli en väg in i frågan.
+  if (from) p.set('from', from);
+  if (to) p.set('to', to);
   if (offset) p.set('offset', String(offset));
   return p.toString();
 }

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { dayKey, dayHeading, groupByDay, price, time, utdrag, venueLabel } from '../public/format.js';
+import { dayKey, dayHeading, daysSince, fetched, groupByDay, price, time, today, utdrag, venueLabel } from '../public/format.js';
 
 test('huset skrivs före rummet', () => {
   assert.equal(venueLabel('Dramaten', 'Stora scenen'), 'Dramaten, Stora scenen');
@@ -124,4 +124,52 @@ test('rader med trasigt datum hoppas över i stället för att fälla listan', (
 test('tom lista ger tom gruppering, inte fel', () => {
   assert.deepEqual(groupByDay([]), []);
   assert.deepEqual(groupByDay(null), []);
+});
+
+// --- Dagens datum och hur färska uppgifterna är ----------------------------
+
+test('dagens datum skrivs ut med veckodag och år', () => {
+  assert.equal(today(new Date('2026-09-15T08:00:00Z')), 'Tisdag 15 september 2026');
+});
+
+test('datumet är Stockholms, inte besökarens', () => {
+  // Strax efter midnatt svensk tid är det fortfarande dagen före i UTC. Sidan
+  // ska säga vilken dag det är i Stockholm – det är där evenemangen går.
+  assert.equal(today(new Date('2026-09-14T22:30:00Z')), 'Tisdag 15 september 2026');
+});
+
+test('dygn räknas i kalenderdagar, inte i timmar', () => {
+  const nu = new Date('2026-09-15T08:00:00Z');
+  // En och en halv timme isär, men två olika dagar i Stockholm.
+  assert.equal(daysSince('2026-09-14T21:30:00Z', nu), 1);
+  assert.equal(daysSince('2026-09-15T04:00:00Z', nu), 0);
+  assert.equal(daysSince('2026-09-08T04:00:00Z', nu), 7);
+});
+
+test('nyss hämtat skrivs som i dag med klockslag', () => {
+  const nu = new Date('2026-09-15T08:00:00Z');
+  assert.equal(fetched('2026-09-15T02:12:00Z', nu), 'hämtad i dag 04:12');
+  assert.equal(fetched('2026-09-14T17:41:00Z', nu), 'hämtad i går 19:41');
+});
+
+test('äldre hämtningar säger hur gamla de är', () => {
+  // Skannern går varje natt, så ett datum flera dagar tillbaka är ett fel och
+  // inte en detalj. Besökaren ska slippa räkna dagar i huvudet för att se det.
+  const nu = new Date('2026-09-15T08:00:00Z');
+  assert.equal(fetched('2026-09-08T02:00:00Z', nu), 'hämtad 8 september – för 7 dagar sedan');
+});
+
+test('en framtida tidsstämpel påstår inte att den är gammal', () => {
+  // Klockan hos källan kan gå fel, och "för -1 dagar sedan" ser ut som en bugg
+  // i sidan snarare än i data.
+  const nu = new Date('2026-09-15T08:00:00Z');
+  assert.equal(fetched('2026-09-15T20:00:00Z', nu), 'hämtad i dag 22:00');
+});
+
+test('saknad hämtningstid skrivs inte ut alls', () => {
+  // Tom sträng, så att raden faller tillbaka på bara datumet. Att hitta på en
+  // tid vore att påstå något vi inte vet.
+  assert.equal(fetched(null), '');
+  assert.equal(fetched(undefined), '');
+  assert.equal(fetched('inte ett datum'), '');
 });

@@ -15,6 +15,7 @@
 <header class="topbar">
   <h1>Kulturkalendern</h1>
   <p class="tagline">Vad som händer på Stockholms scener.</p>
+  <p class="freshness" id="freshness"></p>
 </header>
 
 <main>
@@ -26,6 +27,8 @@
   <label class="sr-only" for="search">Sök bland evenemangen</label>
   <input type="search" id="search" class="search" autocomplete="off"
          placeholder="Sök på titel, scen eller beskrivning">
+
+  <div class="chips" id="dates" role="group" aria-label="Filtrera på datum"></div>
 
   <div class="chips" id="filters" role="group" aria-label="Filtrera på kategori"></div>
 

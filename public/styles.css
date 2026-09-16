@@ -33,6 +33,12 @@ main { max-width: 46rem; margin: 0 auto; }
 .topbar h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.02em; }
 .tagline { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.9rem; }
 
+/* Dagens datum och hur färska uppgifterna är. Gul när skannern har tystnat:
+   en kalender som visar förra veckans utbud utan att säga det är värre än en
+   tom sida, för den ser rätt ut. */
+.freshness { margin: 0.6rem 0 0; color: var(--muted); font-size: 0.8rem; }
+.freshness[data-tone="warn"] { color: #fcd34d; }
+
 .status { margin: 1rem 0 0.5rem; color: var(--muted); font-size: 0.85rem; }
 .status[data-tone="error"] { color: #fca5a5; }
 .status[data-tone="warn"] { color: #fcd34d; }
@@ -110,17 +116,36 @@ main { max-width: 46rem; margin: 0 auto; }
 }
 .search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+/* Filterraden, fjorton kategorier bred.
+
+   På en telefon får den skrolla i sidled: en rad som växer till tre flyttar
+   listan nedanför utanför skärmen, och det är listan man kom för. Scrollbaren
+   är då smal men synlig – dold scrollbar gjorde att raden såg avhuggen ut
+   utan att något sa att den gick att dra.
+
+   Finns det bredd radbryter den i stället, för då ryms alla kategorier utan
+   att kosta något. En knapp man inte ser är en knapp som inte finns. */
 .chips {
   display: flex;
   gap: 0.4rem;
   margin: 0.75rem 0 0;
   padding-bottom: 0.35rem;
   overflow-x: auto;
-  /* Filterraden får skrolla i sidled i stället för att radbryta. En rad som
-     växer till tre flyttar listan nedanför utanför skärmen på en telefon. */
-  scrollbar-width: none;
+  scrollbar-width: thin;
 }
-.chips::-webkit-scrollbar { display: none; }
+
+@media (min-width: 560px) {
+  .chips {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    row-gap: 0.5rem;
+  }
+}
+
+/* Två rader knappar efter varandra: datum först, sedan kategori. Utan luft
+   emellan ser de ut som en enda rad som råkat radbryta, och då är det inte
+   längre uppenbart att de filtrerar var för sig. */
+#dates + .chips { margin-top: 0.5rem; }
 
 .chip {
   flex: 0 0 auto;
@@ -226,6 +251,21 @@ main { max-width: 46rem; margin: 0 auto; }
 }
 
 .more { display: block; margin: 1.5rem auto 0; }
+
+/* Biljettlänken på kortet. Diskret: den som letar efter den hittar den, och
+   den som bara läser vad som spelas ska inte mötas av en köpknapp per rad. */
+.ticket {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.8rem;
+  color: var(--accent);
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.ticket:hover,
+.ticket:focus-visible { border-color: var(--accent); }
 
 .footer {
   max-width: 46rem;
