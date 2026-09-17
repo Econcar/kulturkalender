@@ -7,11 +7,12 @@
 -- sidan har ingen privat data alls, så frågan är den omvända och lika viktig:
 -- kan vem som helst läsa allt, och kan ingen skriva något?
 --
--- Den andra halvan är den som betyder något. Sidan har ingen inloggning, vilket
--- betyder att anon-nyckeln ligger öppet i public/config.js där den ska ligga.
--- Vem som helst kan alltså ta den och tala direkt med PostgREST. Det enda som
--- står mellan den nyckeln och vår databas är att det inte finns någon
--- skrivpolicy. Det är värt att bevisa och inte anta.
+-- Den andra halvan är den som betyder något. Anon-nyckeln ligger inte i public/
+-- här - frontenden talar aldrig med Supabase, utan går via Pages Functions som
+-- håller nyckeln på serversidan. Men en nyckel som passerar en Worker kan läcka
+-- på andra vägen, och nycklar roteras slarvigt. Det enda som står mellan
+-- anon-nyckeln och vår databas är att det inte finns någon skrivpolicy. Det är
+-- värt att bevisa och inte anta.
 --
 -- Väntat slut: "RLS-testet gick igenom".
 
@@ -169,3 +170,13 @@ end;
 $$;
 
 rollback;
+
+-- Notiser syns inte i Supabases SQL-editor, bara i psql. Utan en rad att visa
+-- slutar körningen i "Success. No rows returned", vilket är godkänt men inte
+-- ser ut som ett besked – och den som kör testet första gången vet inte om det
+-- gick igenom eller aldrig kördes.
+--
+-- Selecten står efter rollback med flit: strängen behöver ingen transaktion,
+-- och raden skrivs bara ut om ingen exception ovan har fällt skriptet. Syns
+-- den, höll RLS.
+select 'RLS-testet gick igenom' as resultat;

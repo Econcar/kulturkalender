@@ -106,9 +106,16 @@ Skannern (GitHub → Settings → Secrets and variables → **Actions**):
 ## Uppsättning
 
 1. **Supabase:** projekt → SQL Editor → kör [db/schema.sql](db/schema.sql), och
-   därefter [db/rls-test.sql](db/rls-test.sql) som ska sluta med
+   därefter [db/rls-test.sql](db/rls-test.sql), som ska svara med en enda rad:
    *RLS-testet gick igenom*. Testet rullar tillbaka sig självt och lämnar inga
    spår.
+
+   Editorn visar inte `raise notice`, bara resultatrader – går testet igenom
+   utan den avslutande raden är det en gammal version av filen du kör.
+   Misslyckas något höjs ett fel, och då står det rött i stället.
+
+   Kontrollera sedan att husen finns: `select slug, name from public.venues
+   order by slug;` ska ge fyra rader.
 
    Återanvänds receptbokens Supabase-projekt körs
    [db/drop-receptbok.sql](db/drop-receptbok.sql) först – en gång, medvetet.
