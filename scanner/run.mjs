@@ -84,6 +84,17 @@ async function runSource(source, db) {
     result.status = 'error';
     result.error = err?.message ?? String(err);
     log(`  FEL: ${result.error}`);
+
+    // Kroppen och svarshuvudena, när felet kom från ett HTTP-svar.
+    //
+    // Ett statusnummer räcker inte när felet kommer från ett API bakom en
+    // proxy: "HTTP 500" kan vara gatewayen, lastbalanseraren eller
+    // applikationen bakom dem, och de kräver helt olika åtgärder. Huvudena
+    // säger vem som svarade. Det här kostade en kväll att lista ut en gång.
+    if (err?.body) log(`  svar: ${String(err.body).slice(0, 300)}`);
+    if (err?.headers && Object.keys(err.headers).length) {
+      log(`  huvuden: ${JSON.stringify(err.headers)}`);
+    }
   }
 
   await finish(result);
