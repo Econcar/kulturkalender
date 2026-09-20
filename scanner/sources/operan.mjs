@@ -180,6 +180,17 @@ export async function productionContent(ids, { hämtaJson = fetchJson, paus = sl
   return ut;
 }
 
+// Operan ger INTE premiärdatum, och det är utrett och inte antaget.
+//
+// /productions?productionIds=... svarar med firstPerformanceDate, som ser ut
+// att vara premiären men är första *kommande* föreställningen: för Tosca gav
+// den 2026-09-21, exakt samma datum som nästa speltillfälle. Fältet hade
+// alltså duplicerat starts_at under ett namn som påstår något annat, och en
+// recensionsmatchning byggd på det hade letat i fel vecka.
+//
+// Uppsättningarnas innehålls-API bär inget premiärfält heller. premiere_at
+// blir därför null för Operan, vilket är sant. Dramaten och Kulturhuset ger
+// riktiga premiärdatum - se deras adaptrar.
 /**
  * Ett speltillfälle plus sin uppsättning till en rad.
  *

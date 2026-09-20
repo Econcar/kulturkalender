@@ -107,6 +107,19 @@ create table if not exists public.events (
 -- hade gett 400 från PostgREST på en okänd kolumn.
 alter table public.events add column if not exists organizer text;
 
+-- premiere_at: när uppsättningen hade premiär, inte när nästa föreställning
+-- är. Två olika saker, och skillnaden är hela poängen: en pjäs som hade
+-- premiär i augusti har sin nästa föreställning i morgon.
+--
+-- Bara två av fyra hus ger den. Dramaten skriver "Urpremiär 26 november
+-- 2026" i sin payload, och Kulturhuset publicerar en uppsättning som ett
+-- Event där startDate ÄR premiären. Konserthuset har inget premiärbegrepp
+-- för konserter, och Operans firstPerformanceDate visade sig vara första
+-- kommande föreställningen och inte premiären - se scanner/sources/operan.mjs.
+-- Kolumnen är därför null oftare än den är satt, och det är sant.
+alter table public.events
+  add column if not exists premiere_at timestamptz;
+
 -- Listan sorteras alltid på starttid och filtreras oftast på kategori.
 create index if not exists events_starts_at_idx on public.events (starts_at);
 create index if not exists events_source_starts_idx on public.events (source, starts_at);
@@ -214,6 +227,7 @@ select
   coalesce(rum.address, hus.address, e.address) as address,
   e.starts_at,
   e.ends_at,
+  e.premiere_at,
   e.price_min,
   e.price_max,
   e.currency,
@@ -310,6 +324,9 @@ select
   (array_agg(category order by starts_at))[1] as category,
   (array_agg(genre order by (genre is null), starts_at))[1] as genre,
   count(*)::integer as performances,
+  -- Premiären kommer från raderna, inte från min(starts_at): för en pjäs som
+  -- redan spelat är de olika datum, och det är premiären en recension hör till.
+  min(premiere_at) as premiere_at,
   min(starts_at)  as first_at,
   max(starts_at)  as last_at,
   min(price_min)  as price_min,

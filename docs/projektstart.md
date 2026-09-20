@@ -243,6 +243,63 @@ Hållningen:
 Skulle någon scen be oss sluta är det rimliga svaret att ta bort dem, inte att
 argumentera. En adapter är en fil och en rad i `index.mjs`.
 
+## 7b. Recensioner: undersökt 2026-09-20, halvbyggt
+
+Målet är att se recensioner i anslutning till uppsättningarna. Hämtningen är
+inte problemet - fyra av fem kultursektioner har öppna RSS-flöden som robots
+tillåter. **Matchningen är problemet.**
+
+Rubrikerna är värdelösa. Kulturjournalistik skriver "Vid Ibsens polisonger -
+sanning är något extremt". Ingen rubrik säger vad som recenseras eller ens att
+det är en recension. Adressen bär däremot allt:
+
+```
+aftonbladet.se/kultur/teater/a/M7Gv7B/recension-parzival-av-lukas-barfuss-pa-dramaten
+                     ^                 ^          ^                        ^
+                  sektion          "recension"  uppsättningen           huset
+```
+
+Sex av sex teaterrecensioner hos Aftonbladet och tre av fyra hos SvD bar huset
+i slugen. Kravet på husmatchning är alltså realistiskt - och det är det kravet
+som gör regeln användbar, för flödena är fulla av Malmö, Göteborg, Uppsala,
+Norrköping och Köpenhamn. "Romeo och Julia på Östgötateatern" får inte hamna på
+en Stockholmsuppsättning av samma pjäs.
+
+Artikelsidorna bär `ld+json`, men som `NewsArticle` och inte `Review`. Det
+finns alltså inga maskinläsbara betyg att hämta, och att tolka stjärnor ur HTML
+per tidning vore skört. Ett felaktigt betyg är sämre än inget.
+
+**Premiärdatumet är den andra halvan av matchningen.** En recension kommer inom
+ett par veckor efter premiär, medan `starts_at` bara säger när nästa
+föreställning är - för en pjäs som hade premiär i augusti är det något helt
+annat. Två av fyra hus ger premiären:
+
+| Hus | Premiärdatum | Varifrån |
+| --- | --- | --- |
+| Dramaten | ja | `content.premiere` som fritext: "Urpremiär 26 november 2026" |
+| Kulturhuset | ja | deras `ld+json` publicerar uppsättningens span, så `startDate` **är** premiären |
+| Konserthuset | nej | konserter har inget premiärbegrepp |
+| Operan | nej | `firstPerformanceDate` visade sig vara första *kommande* föreställningen |
+
+Operans fält är värt att minnas som fälla: det heter first och ser ut att vara
+premiären, men för Tosca gav det samma datum som nästa speltillfälle. Att spara
+det hade duplicerat `starts_at` under ett namn som påstår något annat.
+
+Klart: `parseSwedishDate` i `lib/event.mjs`, premiärdatum i två adaptrar,
+`premiere_at` genom båda vyerna, och `lib/review-match.mjs` med tester mot 21
+verkliga flödesposter. Av dem matchar exakt en - Parzival på Dramaten, premiär
+9 september, recenserad 17 september - och ingen matchar fel.
+
+Kvar: läs flödena och spara omatchat en vecka innan tabellen och gränssnittet
+byggs. Det är den veckan som avgör om funktionen är värd att ha, och frågan
+"hur ofta recenseras Stockholms fyra hus?" besvaras inte av mer resonerande.
+
+Två gränser satta med flit. Recensionstexten sparas aldrig - rubrik, tidning,
+datum och länk är försvarbart, en kritikers brödtext är det inte, och det är en
+stramare gräns än avsnitt 7 sätter för scenernas egen marknadsföringstext. Och
+scenernas egna presscitat används inte som källa: de citerar de goda, och då
+väljer marknadsföringen vad sidan visar.
+
 ## 8. Faser
 
 1. **Pivoten.** Receptdomänen bort, skannerstommen tillbaka, nytt schema, ny

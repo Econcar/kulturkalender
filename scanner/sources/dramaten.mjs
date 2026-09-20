@@ -16,7 +16,7 @@
 // price_max blir null. Adaptern gissar inte – se avsnitt 4 i projektstart.md.
 
 import { fetchText, isAllowedByRobots, sleep } from '../../lib/http.mjs';
-import { parseDateTime } from '../../lib/event.mjs';
+import { parseDateTime, parseSwedishDate } from '../../lib/event.mjs';
 import { clean, first, toArray } from '../../lib/text.mjs';
 
 const BAS = 'https://www.dramaten.se';
@@ -102,6 +102,11 @@ export function eventsFromProduction(html, { sourceUrl } = {}) {
   if (!content) return [];
 
   const produktion = content.production ?? {};
+  // "Urpremiär 26 november 2026". Fritext och inte ett fält, så den parsas.
+  // Premiären är den starkaste signalen för att koppla en recension till en
+  // uppsättning - starts_at säger bara när nästa föreställning är, vilket för
+  // en pjäs som hade premiär i augusti är något helt annat.
+  const premiere_at = parseSwedishDate(content.premiere ?? produktion.premiere);
   const beskrivning = clean(content.listingDescription) ?? clean(content.description);
   const bild = imageFrom(produktion) ?? imageFrom(content);
   const url = sourceUrl ?? (produktion.slug ? `${BAS}/repertoar/${produktion.slug}/` : null);
@@ -125,6 +130,7 @@ export function eventsFromProduction(html, { sourceUrl } = {}) {
       address: 'Nybroplan, Stockholm',
       starts_at,
       ends_at: parseDateTime(f?.endDate),
+      premiere_at,
       price_min: null,
       price_max: null,
       currency: 'SEK',

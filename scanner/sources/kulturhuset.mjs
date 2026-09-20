@@ -67,7 +67,11 @@ export default {
       }
 
       for (const event of events) {
-        ut.push({ ...event, external_id: externalId(url) });
+        // Kulturhuset publicerar en uppsättning som ETT Event med premiären
+        // som startDate och derniären som endDate - se kommentaren högst upp.
+        // Deras starttid är alltså premiärdatumet, till skillnad från de andra
+        // husen som ger en rad per kväll.
+        ut.push({ ...event, external_id: externalId(url), premiere_at: event.starts_at });
       }
       await paus(1200); // var snäll mot källan
     }
