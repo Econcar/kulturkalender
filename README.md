@@ -34,6 +34,8 @@ public/              Statisk frontend (Cloudflare Pages root)
                        kunna testas; app.js rör document redan vid import
   format.js            Rena formateringsfunktioner – testbara utan webbläsare
 scanner/             Skannern. Körs av GitHub Actions, inte av webbläsaren
+  reviews/run.mjs      Recensionsläsningen. Samlar in och matchar, skriver
+                       inget - se avsnitt 7b i docs/projektstart.md
   run.mjs              Motorn: kör källorna isolerat, loggar till scan_runs
   sources/             En adapter per scen. Börja i _template.mjs
   lib/                 Dubblettfilter, Supabase-skrivning med service-nyckeln,
@@ -54,6 +56,7 @@ docs/                Projektdokumentation
 npm test           # node --check på alla .js + node --test tests/
 npm run check      # bara syntaxkontroll
 npm run scan:local # skanna till data/events.json (ingen databas behövs)
+npm run reviews    # läs kultursektionernas flöden, matcha, skriv inget till db
 npm run dev        # kör sidan lokalt på http://localhost:8788
 npm run scan       # kör skannern mot Supabase
 npm run scan:dry   # kör skannern utan att skriva något

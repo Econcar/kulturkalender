@@ -1,0 +1,50 @@
+name: Läs recensioner
+
+# Steg tre av recensionsfunktionen: samla in och titta, skriv ingenting.
+#
+# Körningen läser kultursektionernas flöden, matchar mot uppsättningarna på
+# sidan och sparar allt den såg som en artefakt - matchat, omatchat och
+# bortsorterat. Efter en vecka finns sju filer att läsa, och då vet vi hur ofta
+# Stockholms fyra hus faktiskt recenseras.
+#
+# Ingen databas och inga secrets. Uppsättningarna läses från det publika
+# API:et, vilket också betyder att jobbet inte kan gå sönder på något sätt som
+# påverkar kalendern.
+
+on:
+  schedule:
+    # 05:12 UTC, en timme efter skanningen. Uppsättningarna ska vara färska när
+    # recensionerna matchas mot dem - en recension av en pjäs som skannern inte
+    # hunnit lägga in matchar ingenting.
+    - cron: '12 5 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: reviews
+  cancel-in-progress: false
+
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Läs flödena
+        run: node scanner/reviews/run.mjs
+
+      # Artefakt och inte en commit: det här är observationer under en vecka,
+      # inte källkod. Sju filer i repot hade varit sju commits som ingen vill
+      # läsa, och artefakter försvinner av sig själva när frågan är besvarad.
+      - name: Spara observationerna
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recensioner-${{ github.run_number }}
+          path: data/reviews.json
+          retention-days: 30
+          if-no-files-found: warn

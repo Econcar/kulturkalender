@@ -14,6 +14,8 @@
     "scan": "node scanner/run.mjs",
     "scan:dry": "node scanner/run.mjs --dry-run",
     "scan:local": "node scanner/run.mjs --out data/events.json",
-    "predeploy": "node scripts/predeploy.mjs"
+    "predeploy": "node scripts/predeploy.mjs",
+    "reviews": "node scanner/reviews/run.mjs",
+    "reviews:local": "node scanner/reviews/run.mjs --local"
   }
 }
