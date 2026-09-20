@@ -76,22 +76,46 @@ export function createClient({ url, serviceKey, dryRun = false } = {}) {
       return written;
     },
 
-    /** Startar en rad i scan_runs och returnerar en avslutare. */
+    /**
+     * Startar en rad i scan_runs och returnerar en avslutare.
+     *
+     * Misslyckas skrivningen fortsätter skanningen ändå. Driftloggen är en
+     * anteckning OM arbetet och får aldrig hindra arbetet - det är fel ordning
+     * på prioriteringarna, och det kostade sex nattkörningar innan det märktes:
+     * Supabases Data API svarade 500 på just den här inserten medan samma rad
+     * gick att skriva i SQL-editorn, och hela svepet föll på loggen i stället
+     * för att hämta 1100 evenemang.
+     *
+     * Felet skrivs ut i stället. Det syns i Actions-loggen, och att raden
+     * saknas i scan_runs är i sig ett spår.
+     */
     async startRun(source) {
       if (isDryRun) {
         return async (result) => console.log(`[dry-run] ${source}:`, result);
       }
-      const [run] = await request('scan_runs', {
-        method: 'POST',
-        body: [{ source, status: 'running' }],
-        prefer: 'return=representation',
-      });
-      return async ({ status, rows_found = 0, rows_upserted = 0, error = null }) => {
-        await request(`scan_runs?id=eq.${run.id}`, {
-          method: 'PATCH',
-          body: { status, rows_found, rows_upserted, error, finished_at: new Date().toISOString() },
-          prefer: 'return=minimal',
+
+      let run = null;
+      try {
+        [run] = await request('scan_runs', {
+          method: 'POST',
+          body: [{ source, status: 'running' }],
+          prefer: 'return=representation',
         });
+      } catch (err) {
+        console.log(`  driftloggen kunde inte skrivas (${err.message}) - skannar vidare`);
+        return async () => {};
+      }
+
+      return async ({ status, rows_found = 0, rows_upserted = 0, error = null }) => {
+        try {
+          await request(`scan_runs?id=eq.${run.id}`, {
+            method: 'PATCH',
+            body: { status, rows_found, rows_upserted, error, finished_at: new Date().toISOString() },
+            prefer: 'return=minimal',
+          });
+        } catch (err) {
+          console.log(`  driftloggen kunde inte uppdateras: ${err.message}`);
+        }
       };
     },
   };
