@@ -39,6 +39,17 @@ const server = createServer(async (req, res) => {
 
   if (url.pathname === '/api/events') return events(url, res);
   if (url.pathname === '/api/venues') return venues(res);
+  if (url.pathname === '/api/scan') {
+    // Knappen startar ett GitHub Actions-jobb, och det gör bara den utrullade
+    // Pages Functionen. Ett tydligt svar är bättre än en 404 som ser ut som
+    // ett stavfel.
+    res.writeHead(501, { 'content-type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({
+      error: 'Skanningsknappen finns bara i drift. Lokalt kör du npm run scan:local i stället.',
+    }));
+    return;
+  }
+
   if (url.pathname === '/api/health') {
     return json(res, { ok: true, time: new Date().toISOString(), supabase_configured: false });
   }

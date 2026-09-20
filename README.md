@@ -28,6 +28,7 @@ därför **inga npm-beroenden**, inget byggsteg, och deploy via GitHub → Cloud
 
 ```
 public/              Statisk frontend (Cloudflare Pages root)
+  drift.js             Skanningsknappen. Döljs för besökare, kräver nyckel
   index.html/app.js    Listsidan: kommande evenemang, dag för dag
   api.js               Samtalet med /api/events – skilt från app.js för att
                        kunna testas; app.js rör document redan vid import
@@ -95,6 +96,8 @@ slår igenom först efter en ny deploy:
 | --- | --- | --- |
 | `SUPABASE_URL` | Text | `https://<projekt>.supabase.co` – **bara roten**, ingen sökväg |
 | `SUPABASE_ANON_KEY` | Text | Publik anon-nyckel. Läser via RLS, kan inte skriva |
+| `SCAN_TRIGGER_KEY` | **Secret** | Lösenord för skanningsknappen. Saknas den är knappen avstängd |
+| `GITHUB_TOKEN` | **Secret** | Fine-grained PAT med *Actions: Read and write* på detta repo. Endast det |
 
 Skannern (GitHub → Settings → Secrets and variables → **Actions**):
 

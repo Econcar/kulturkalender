@@ -267,6 +267,21 @@ main { max-width: 46rem; margin: 0 auto; }
 .ticket:hover,
 .ticket:focus-visible { border-color: var(--accent); }
 
+/* Driftkontrollerna. Diskreta med flit: de hör inte till det besökaren kom
+   för, och syns bara för den som har nyckeln. */
+.drift {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+.driftstatus { font-size: 0.8rem; color: var(--muted); }
+.driftstatus[data-tone="error"] { color: #fca5a5; }
+.driftstatus[data-tone="warn"] { color: #fcd34d; }
+.driftstatus[data-tone="ok"] { color: var(--good); }
+.driftstatus a { color: var(--accent); }
+
 .footer {
   max-width: 46rem;
   margin: 2.5rem auto 0;

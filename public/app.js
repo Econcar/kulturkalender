@@ -6,6 +6,7 @@
 
 import { fetchEvents, fetchVenues } from '/api.js';
 import { dateRange, daysSince, fetched, groupByDay, price, time, today, utdrag, venueLabel } from '/format.js';
+import { initDrift } from '/drift.js';
 import { VERSION } from '/version.js';
 
 // Måste täcka alla värden CATEGORIES i lib/event.mjs kan ge, annars blir en
@@ -58,6 +59,9 @@ const el = {
   more: document.getElementById('more'),
   meta: document.getElementById('meta'),
   freshness: document.getElementById('freshness'),
+  drift: document.getElementById('drift'),
+  rescan: document.getElementById('rescan'),
+  driftstatus: document.getElementById('driftstatus'),
 };
 
 // Filtren ligger i adressfältet och inte i en variabel, så att en filtrerad
@@ -109,6 +113,18 @@ function init() {
 
   hämta({ ersätt: true });
   hämtaScener();
+
+  // Driftkontrollerna. De visar sig bara för den som har nyckeln, och när ett
+  // svep är klart hämtas listan om utan att sidan behöver laddas.
+  initDrift({
+    rot: el.drift,
+    knapp: el.rescan,
+    status: el.driftstatus,
+    onDone: () => {
+      hämtaScener();
+      hämta({ ersätt: true });
+    },
+  });
 }
 
 /**

@@ -16,6 +16,13 @@
   <h1>Kulturkalendern</h1>
   <p class="tagline">Vad som händer på Stockholms scener.</p>
   <p class="freshness" id="freshness"></p>
+
+  <!-- Driftkontroller. Döljs för besökare av public/drift.js; den riktiga
+       spärren sitter i functions/api/scan.js, som kräver nyckeln. -->
+  <div class="drift" id="drift" hidden>
+    <button type="button" id="rescan" class="button">Hämta nytt från scenerna</button>
+    <span class="driftstatus" id="driftstatus"></span>
+  </div>
 </header>
 
 <main>
