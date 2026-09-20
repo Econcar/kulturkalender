@@ -22,6 +22,9 @@ const IDAG = new Intl.DateTimeFormat('sv-SE', {
 const DAGMÅNAD = new Intl.DateTimeFormat('sv-SE', {
   timeZone: ZON, day: 'numeric', month: 'long',
 });
+const MEDÅR = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: ZON, day: 'numeric', month: 'long', year: 'numeric',
+});
 
 /** "2026-10-17" i Stockholmstid. Nyckeln som dagsgrupperingen bygger på. */
 export function dayKey(iso) {
@@ -133,6 +136,40 @@ function plusDagar(nyckel, n) {
   const d = new Date(`${nyckel}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Speltiden för en uppsättning: "25 november - 23 mars 2027, 60 föreställningar".
+ *
+ * Året skrivs ut bara när det skiljer sig från det vi är i. "16 september"
+ * räcker i september 2026, medan "23 mars 2027" behöver sitt år för att inte
+ * läsas som i våras. Det är samma regel en människa följer när hon berättar
+ * vad som spelas.
+ *
+ * En ensam föreställning får inget antal efter sig. "1 föreställning" är
+ * information som inte tillför något - datumet säger redan allt.
+ */
+export function runLabel(firstIso, lastIso, performances = 1, now = new Date()) {
+  // Tomt värde före new Date(): new Date(null) är epoch och alltså giltigt, så
+  // en rad utan premiärdatum hade skrivits ut som "1 januari 1970".
+  if (!firstIso) return '';
+
+  const första = new Date(firstIso);
+  if (Number.isNaN(första.getTime())) return '';
+
+  const sista = new Date(lastIso ?? firstIso);
+  const nuÅr = år(now);
+  const datum = (d) => (år(d) === nuÅr ? DAGMÅNAD.format(d) : MEDÅR.format(d));
+
+  const spann = Number.isNaN(sista.getTime()) || dayKey(firstIso) === dayKey(sista.toISOString())
+    ? datum(första)
+    : `${datum(första)} – ${datum(sista)}`;
+
+  return performances > 1 ? `${spann}, ${performances} föreställningar` : spann;
+}
+
+function år(d) {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: ZON, year: 'numeric' }).format(d);
 }
 
 /** "20:00" */

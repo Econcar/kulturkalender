@@ -4,8 +4,8 @@
 // Därför inget session.js, ingen Supabase-klient i webbläsaren, och inget
 // tillstånd att hålla reda på utöver de filter som står i adressfältet.
 
-import { fetchEvents, fetchVenues } from '/api.js';
-import { dateRange, daysSince, fetched, groupByDay, price, time, today, utdrag, venueLabel } from '/format.js';
+import { fetchEvents, fetchProductions, fetchVenues } from '/api.js';
+import { dateRange, daysSince, fetched, groupByDay, price, runLabel, time, today, utdrag, venueLabel } from '/format.js';
 import { initDrift } from '/drift.js';
 import { VERSION } from '/version.js';
 
@@ -46,12 +46,26 @@ const PERIODER = [
   ['vecka', 'Den här veckan'],
 ];
 
+/**
+ * De två sätten att läsa en kalender.
+ *
+ * "Vad händer i kväll?" och "vad spelar Dramaten?" är olika frågor, och den
+ * dag-för-dag-sorterade listan kan bara svara på den första: Dramatens Amnesi
+ * ligger i den som sextio rader utspridda över fyra månader. Repertoarvyn slår
+ * ihop dem till en och visar speltiden i stället.
+ */
+const VYER = [
+  ['', 'Dag för dag'],
+  ['repertoar', 'Repertoar'],
+];
+
 const SIDSTORLEK = 60;
 
 const el = {
   search: document.getElementById('search'),
   filters: document.getElementById('filters'),
   dates: document.getElementById('dates'),
+  views: document.getElementById('views'),
   venues: document.getElementById('venues'),
   venuelist: document.getElementById('venuelist'),
   status: document.getElementById('status'),
@@ -73,6 +87,7 @@ let scener = [];
 init();
 
 function init() {
+  ritaVyer();
   ritaFilter();
   ritaDatum();
   ritaFärskhet();
@@ -105,6 +120,7 @@ function init() {
   window.addEventListener('popstate', () => {
     Object.assign(state, läsUrl());
     el.search.value = state.q;
+    ritaVyer();
     ritaFilter();
     ritaDatum();
     ritaScener();
@@ -213,19 +229,29 @@ async function hämta({ ersätt, tyst = false } = {}) {
   try {
     // Perioden blir ett datumspann först här. state bär valet ("helg"), inte
     // datumen – annars pekar ett bokmärke från i fredags på förra helgen.
-    const { from, to } = dateRange(state.period);
-    const data = await fetchEvents({ ...state, from, to }, { limit: SIDSTORLEK });
+    // Datumfiltret gäller inte repertoaren: en uppsättning som spelas i helgen
+    // har sin premiär någon annan gång, och att filtrera på premiärdatumet
+    // hade svarat på en fråga ingen ställde.
+    const { from, to } = state.view === 'repertoar' ? { from: '', to: '' } : dateRange(state.period);
 
-    laddade = ersätt ? data.events : [...laddade, ...data.events];
-    rita(laddade);
-    el.more.hidden = data.events.length < SIDSTORLEK;
+    const data = state.view === 'repertoar'
+      ? await fetchProductions({ ...state }, { limit: SIDSTORLEK })
+      : await fetchEvents({ ...state, from, to }, { limit: SIDSTORLEK });
+
+    const nya = state.view === 'repertoar' ? data.productions : data.events;
+    laddade = ersätt ? nya : [...laddade, ...nya];
+
+    if (state.view === 'repertoar') ritaRepertoar(laddade);
+    else rita(laddade);
+
+    el.more.hidden = nya.length < SIDSTORLEK;
 
     if (!laddade.length) {
       sätt(state.q || state.category || state.venue || state.period
         ? 'Inget matchade filtret.'
         : 'Inga evenemang inlagda ännu. Skannern har inte körts.', 'warn');
     } else {
-      sätt(`${laddade.length} evenemang`, 'ok');
+      sätt(`${laddade.length} ${state.view === 'repertoar' ? 'uppsättningar' : 'evenemang'}`, 'ok');
     }
   } catch (err) {
     // Service workern serverar ett cachat svar när nätet saknas, så hamnar vi
@@ -331,6 +357,98 @@ function kort(event) {
   return li;
 }
 
+function ritaVyer() {
+  const frag = document.createDocumentFragment();
+  for (const [värde, etikett] of VYER) {
+    const knapp = document.createElement('button');
+    knapp.type = 'button';
+    knapp.className = 'chip';
+    knapp.textContent = etikett;
+    knapp.setAttribute('aria-pressed', String(state.view === värde));
+    knapp.addEventListener('click', () => {
+      if (state.view === värde) return;
+      state.view = värde;
+      state.offset = 0;
+      skrivUrl();
+      ritaVyer();
+      ritaDatum();
+      hämta({ ersätt: true });
+    });
+    frag.append(knapp);
+  }
+  el.views.replaceChildren(frag);
+
+  // Datumraden hör inte till repertoaren. Se kommentaren i hämta().
+  el.dates.hidden = state.view === 'repertoar';
+}
+
+/** En rad per uppsättning, med speltiden i stället för ett klockslag. */
+function ritaRepertoar(productions) {
+  const frag = document.createDocumentFragment();
+  let hus = null;
+
+  for (const p of productions) {
+    // Rubrik per hus, så att "vad spelar Dramaten?" går att läsa som ett svar
+    // även när alla scener visas samtidigt.
+    if (p.venue !== hus) {
+      hus = p.venue;
+      const rubrik = document.createElement('li');
+      rubrik.className = 'dayheading';
+      rubrik.textContent = hus ?? 'Övriga';
+      frag.append(rubrik);
+    }
+    frag.append(uppsättning(p));
+  }
+
+  el.results.replaceChildren(frag);
+}
+
+function uppsättning(p) {
+  const li = document.createElement('li');
+  li.className = 'card';
+
+  if (p.image_url) {
+    const img = document.createElement('img');
+    img.className = 'thumb';
+    img.src = p.image_url;
+    img.alt = '';
+    img.loading = 'lazy';
+    img.addEventListener('error', () => img.remove());
+    li.append(img);
+  }
+
+  const kropp = document.createElement('div');
+  kropp.className = 'cardbody';
+
+  const titel = document.createElement('h2');
+  const länk = document.createElement('a');
+  länk.href = p.url ?? '#';
+  länk.textContent = p.title;
+  länk.rel = 'noopener';
+  länk.target = '_blank';
+  titel.append(länk);
+  kropp.append(titel);
+
+  const fakta = document.createElement('p');
+  fakta.className = 'facts';
+  fakta.textContent = [
+    runLabel(p.first_at, p.last_at, p.performances),
+    p.stages > 1 ? `${p.stages} scener` : null,
+    price(p.price_min, p.price_max, 'SEK'),
+  ].filter(Boolean).join(' · ');
+  kropp.append(fakta);
+
+  if (p.description) {
+    const text = document.createElement('p');
+    text.className = 'muted excerpt';
+    text.textContent = utdrag(p.description);
+    kropp.append(text);
+  }
+
+  li.append(kropp);
+  return li;
+}
+
 function ritaDatum() {
   const frag = document.createDocumentFragment();
   for (const [värde, etikett] of PERIODER) {
@@ -374,7 +492,9 @@ function ritaFilter() {
 function läsUrl() {
   const p = new URLSearchParams(location.search);
   const period = p.get('nar') ?? '';
+  const view = p.get('vy') ?? '';
   return {
+    view: VYER.some(([värde]) => värde === view) ? view : '',
     category: p.get('kategori') ?? '',
     venue: p.get('scen') ?? '',
     q: p.get('sok') ?? '',
@@ -391,6 +511,7 @@ function skrivUrl() {
   if (state.venue) p.set('scen', state.venue);
   if (state.q) p.set('sok', state.q);
   if (state.period) p.set('nar', state.period);
+  if (state.view) p.set('vy', state.view);
   const fråga = p.toString();
   history.replaceState(null, '', fråga ? `?${fråga}` : location.pathname);
 }

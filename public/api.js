@@ -71,3 +71,15 @@ export async function fetchVenues({ fetchImpl = fetch } = {}) {
     return [];
   }
 }
+
+/**
+ * Uppsättningarna hos scenerna - en rad per pjäs, inte per kväll.
+ *
+ * Egen funktion och inte en flagga till fetchEvents: svaret har en annan form
+ * (productions, inte events) och en annan mening. Ett filter som råkar skickas
+ * till fel endpoint ska inte tyst ge ett svar som ser rimligt ut.
+ */
+export async function fetchProductions(state, { limit = 100, fetchImpl = fetch } = {}) {
+  const res = await fetchImpl(`/api/productions?${buildQuery({ ...state, limit })}`);
+  return parseResponse(res, { nyckel: 'productions' });
+}

@@ -116,6 +116,11 @@ main { max-width: 46rem; margin: 0 auto; }
 }
 .search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+/* Vyvalet. Ligger ovanför sökrutan för att det styr vad allt annat betyder:
+   i repertoarvyn filtrerar kategorierna uppsättningar, inte kvällar. Lite
+   luftigare än filterknapparna nedanför, så att raderna inte läses som en. */
+.views { margin: 0 0 0.9rem; }
+
 /* Filterraden, fjorton kategorier bred.
 
    På en telefon får den skrolla i sidled: en rad som växer till tre flyttar

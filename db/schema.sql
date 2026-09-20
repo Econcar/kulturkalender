@@ -201,6 +201,7 @@ with (security_invoker = true) as
 select
   e.id,
   e.source,
+  e.external_id,
   e.url,
   e.title,
   e.description,
@@ -256,6 +257,70 @@ left join public.events e
  and e.status <> 'cancelled'
 group by v.slug, v.name, v.url;
 
+-- Uppsättningarna, en rad per pjäs eller konsert i stället för en per kväll.
+--
+-- "Vad spelar Dramaten?" är en annan fråga än "vad händer i kväll?", och
+-- upcoming_events kan bara svara på den andra: Amnesi ligger där som sextio
+-- rader. Den här vyn slår ihop dem till en.
+--
+-- Nyckeln är källspecifik, och det är mätt och inte antaget. Räknat på
+-- kommande rader 2026-09-20:
+--
+--   nyckel                Dramaten  Konserthuset  Kulturhuset  Operan
+--   url                         29           297          130      20
+--   slug ur external_id        443           171            7     258
+--
+-- url är rätt för tre av fyra hus - Dramatens 29 stämmer exakt med skannerns
+-- "29 uppsättningar i repertoaren". Konserthuset ger däremot varje kväll sin
+-- egen adress (.../schumanns-tredje-symfoni/20260916-1800/), så där är slugen
+-- i external_id nyckeln. Titeln duger ingenstans: Dramaten ger 46 titlar på
+-- 29 uppsättningar, eftersom syntolkade och skolföreställningar får egna namn.
+--
+-- Just därför är kortaste titeln uppsättningens namn. Husen hänger på
+-- kvalificerare efter grundtiteln - "Misantropen (syntolkad)", "Biohack me
+-- Relaxed Performance" - så min(title) alfabetiskt ger fel svar medan den
+-- kortaste ger rätt.
+drop view if exists public.upcoming_productions;
+create view public.upcoming_productions
+with (security_invoker = true) as
+with nycklade as (
+  select
+    e.*,
+    case
+      when e.source = 'konserthuset'
+        then e.source || '|' || split_part(e.external_id, '/', 1)
+      else e.source || '|' || coalesce(e.url, e.title)
+    end as production_key
+  from public.upcoming_events e
+)
+select
+  production_key,
+  source,
+  min(venue)      as venue,
+  min(venue_slug) as venue_slug,
+  -- Kortaste titeln, se resonemanget ovan. Alfabetisk ordning som andra
+  -- nyckel, så att vyn är deterministisk när två titlar är lika långa.
+  (array_agg(title order by length(title), title))[1] as title,
+  -- Adressen till den tidigaste föreställningen. För Konserthuset pekar den
+  -- på ett datum, vilket är det närmaste huset har till en uppsättningssida.
+  (array_agg(url order by starts_at))[1] as url,
+  -- Bild och text: ta från en rad som faktiskt har dem.
+  (array_agg(image_url order by (image_url is null), starts_at))[1] as image_url,
+  (array_agg(description order by (description is null), length(description) desc))[1] as description,
+  (array_agg(category order by starts_at))[1] as category,
+  (array_agg(genre order by (genre is null), starts_at))[1] as genre,
+  count(*)::integer as performances,
+  min(starts_at)  as first_at,
+  max(starts_at)  as last_at,
+  min(price_min)  as price_min,
+  max(price_max)  as price_max,
+  -- Antal rum uppsättningen spelas i. Fler än ett betyder att den turnerar
+  -- inom huset, vilket är värt att visa.
+  count(distinct stage) filter (where stage is not null)::integer as stages,
+  max(last_seen_at) as last_seen_at
+from nycklade
+group by production_key, source;
+
 -- ---------------------------------------------------------------------------
 -- RLS
 -- ---------------------------------------------------------------------------
@@ -297,6 +362,7 @@ create policy "driftloggen är läsbar för alla"
 grant usage on schema public to anon, authenticated;
 grant select on public.venues, public.events, public.scan_runs to anon, authenticated;
 grant select on public.upcoming_events, public.venue_summary to anon, authenticated;
+grant select on public.upcoming_productions to anon, authenticated;
 
 -- Ingen av rollerna får skriva. Uttalat, inte underförstått.
 revoke insert, update, delete on public.venues    from anon, authenticated;

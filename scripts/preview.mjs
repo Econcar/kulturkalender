@@ -16,7 +16,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { applyFilters, upcomingEvents, venueSummary } from '../lib/upcoming.mjs';
+import { applyFilters, upcomingEvents, upcomingProductions, venueSummary } from '../lib/upcoming.mjs';
 
 const rot = fileURLToPath(new URL('..', import.meta.url));
 const PUBLIC = join(rot, 'public');
@@ -39,6 +39,7 @@ const server = createServer(async (req, res) => {
 
   if (url.pathname === '/api/events') return events(url, res);
   if (url.pathname === '/api/venues') return venues(res);
+  if (url.pathname === '/api/productions') return productions(url, res);
   if (url.pathname === '/api/scan') {
     // Knappen startar ett GitHub Actions-jobb, och det gör bara den utrullade
     // Pages Functionen. Ett tydligt svar är bättre än en 404 som ser ut som
@@ -56,6 +57,31 @@ const server = createServer(async (req, res) => {
 
   await statisk(url, res);
 });
+
+/** Uppsättningarna. Motsvarar vyn upcoming_productions. */
+async function productions(url, res) {
+  const p = url.searchParams;
+  let rader = upcomingProductions(upcomingEvents(await läsData()));
+
+  const venue = p.get('venue');
+  if (venue) rader = rader.filter((r) => r.venue_slug === venue);
+
+  const category = p.get('category');
+  if (category) rader = rader.filter((r) => r.category === category);
+
+  const q = (p.get('q') ?? '').toLowerCase();
+  if (q.length >= 2) {
+    rader = rader.filter((r) => `${r.title ?? ''} ${r.description ?? ''} ${r.venue ?? ''}`
+      .toLowerCase()
+      .includes(q));
+  }
+
+  const limit = Number(p.get('limit')) || 100;
+  const offset = Number(p.get('offset')) || 0;
+  const träffar = rader.slice(offset, offset + limit);
+
+  json(res, { generated_at: new Date().toISOString(), count: träffar.length, productions: träffar });
+}
 
 async function venues(res) {
   // upcomingEvents först: vyn venue_summary räknar bara kommande, inte
