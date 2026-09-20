@@ -17,6 +17,9 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { applyFilters, upcomingEvents, upcomingProductions, venueSummary } from '../lib/upcoming.mjs';
+import { FLÖDEN, publicistNamn } from '../lib/feeds.mjs';
+import { parseFeed } from '../lib/rss.mjs';
+import { matchReview, parseReviewUrl } from '../lib/review-match.mjs';
 
 const rot = fileURLToPath(new URL('..', import.meta.url));
 const PUBLIC = join(rot, 'public');
@@ -40,6 +43,7 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/api/events') return events(url, res);
   if (url.pathname === '/api/venues') return venues(res);
   if (url.pathname === '/api/productions') return productions(url, res);
+  if (url.pathname === '/api/news') return news(res);
   if (url.pathname === '/api/scan') {
     // Knappen startar ett GitHub Actions-jobb, och det gör bara den utrullade
     // Pages Functionen. Ett tydligt svar är bättre än en 404 som ser ut som
@@ -57,6 +61,46 @@ const server = createServer(async (req, res) => {
 
   await statisk(url, res);
 });
+
+/**
+ * Nyheterna. Motsvarar functions/api/news.js.
+ *
+ * Hämtar flödena på riktigt, precis som drift gör - det är ju där
+ * matchningen kan visa sig vara fel, och en stubbe hade dolt just det.
+ */
+async function news(res) {
+  const uppsättningar = upcomingProductions(upcomingEvents(await läsData()));
+  const gräns = Date.now() - 14 * 86_400_000;
+
+  const nya = uppsättningar
+    .filter((p) => p.announced_at && new Date(p.announced_at).getTime() >= gräns)
+    .sort((a, b) => String(b.announced_at).localeCompare(String(a.announced_at)))
+    .slice(0, 40);
+
+  const recensioner = [];
+  for (const [publicist, adress] of FLÖDEN) {
+    try {
+      const svar = await fetch(adress);
+      if (!svar.ok) continue;
+      for (const post of parseFeed(await svar.text())) {
+        if (!parseReviewUrl(post.url).isReview) continue;
+        const träff = matchReview(post, uppsättningar);
+        if (!träff) continue;
+        const p = uppsättningar.find((u) => u.production_key === träff.production_key);
+        recensioner.push({
+          url: post.url, title: post.title, description: post.description,
+          published: post.published, publisher: publicistNamn(publicist),
+          confidence: träff.confidence,
+          production: p && { production_key: p.production_key, title: p.title, venue: p.venue, url: p.url },
+        });
+      }
+    } catch {
+      // En tidning som inte svarar ska inte dölja nyheterna.
+    }
+  }
+
+  json(res, { generated_at: new Date().toISOString(), days: 14, productions: nya, reviews: recensioner });
+}
 
 /** Uppsättningarna. Motsvarar vyn upcoming_productions. */
 async function productions(url, res) {

@@ -20,20 +20,11 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 import { fetchText, isAllowedByRobots, sleep } from '../../lib/http.mjs';
+import { FLÖDEN } from '../../lib/feeds.mjs';
 import { parseFeed } from '../../lib/rss.mjs';
 import { matchReview, parseReviewUrl } from '../../lib/review-match.mjs';
 import { upcomingEvents, upcomingProductions } from '../../lib/upcoming.mjs';
 
-// Kultursektionernas flöden, undersökta 2026-09-20. DN har ingen öppen
-// kulturfeed - /kultur/rss/ svarar 404 - och Expressens slugar bär inte ordet
-// recension, så deras poster kommer med men matchar sällan. Båda står kvar i
-// listan bara som kommentar: att de saknas är ett resultat och inte en glömska.
-const FLÖDEN = [
-  ['aftonbladet', 'https://rss.aftonbladet.se/rss2/small/pages/sections/kultur/'],
-  ['svd', 'https://www.svd.se/feed/articles.rss'],
-  ['svt', 'https://www.svt.se/rss.xml'],
-  ['expressen', 'https://feeds.expressen.se/kultur/'],
-];
 
 const SIDA = 'https://receptbok.pages.dev';
 const UT = 'data/reviews.json';

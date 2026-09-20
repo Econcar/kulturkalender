@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildQuery, fetchEvents, fetchVenues, parseResponse } from '../public/api.js';
+import { buildQuery, fetchEvents, fetchNews, fetchVenues, parseResponse } from '../public/api.js';
 
 /** Ett minimalt svar med bara det parseResponse tittar på. */
 const svar = ({ ok = true, status = 200, type = 'application/json; charset=utf-8', body = { events: [] } } = {}) => ({
@@ -96,4 +96,28 @@ test('fetchEvents sätter ihop adressen och läser svaret', async () => {
 
   assert.equal(hämtad, '/api/events?limit=10&category=konsert');
   assert.deepEqual(data.events, []);
+});
+
+test('nyheterna hämtas utan filter', async () => {
+  // Ändpunkten tar inga parametrar med flit: en enda cachenyckel betyder att
+  // tidningarnas flöden hämtas som mest två gånger i timmen, oavsett hur
+  // många som besöker sidan. Skickas filter med spricker den egenskapen.
+  let hämtad = null;
+  const data = await fetchNews({
+    fetchImpl: async (url) => {
+      hämtad = url;
+      return svar({ body: { productions: [{ title: "Amnesi" }], reviews: [] } });
+    },
+  });
+
+  assert.equal(hämtad, '/api/news');
+  assert.equal(data.productions.length, 1);
+  assert.deepEqual(data.reviews, []);
+});
+
+test('ett nyhetssvar utan productions avvisas', async () => {
+  await assert.rejects(
+    () => fetchNews({ fetchImpl: async () => svar({ body: { reviews: [] } }) }),
+    /productions-lista/,
+  );
 });

@@ -83,3 +83,15 @@ export async function fetchProductions(state, { limit = 100, fetchImpl = fetch }
   const res = await fetchImpl(`/api/productions?${buildQuery({ ...state, limit })}`);
   return parseResponse(res, { nyckel: 'productions' });
 }
+
+/**
+ * Nyheterna: nya uppsättningar och nya recensioner.
+ *
+ * Tar inga filter. Ändpunkten hämtar tidningarnas flöden vid förfrågan, och
+ * en enda cachenyckel betyder att de hämtas som mest två gånger i timmen
+ * oavsett hur många som besöker sidan. Scenfiltret läggs på i webbläsaren.
+ */
+export async function fetchNews({ fetchImpl = fetch } = {}) {
+  const res = await fetchImpl('/api/news');
+  return parseResponse(res, { nyckel: 'productions' });
+}

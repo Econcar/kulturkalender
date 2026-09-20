@@ -4,8 +4,8 @@
 // Därför inget session.js, ingen Supabase-klient i webbläsaren, och inget
 // tillstånd att hålla reda på utöver de filter som står i adressfältet.
 
-import { fetchEvents, fetchProductions, fetchVenues } from '/api.js';
-import { dateRange, daysSince, fetched, groupByDay, price, runLabel, time, today, utdrag, venueLabel } from '/format.js';
+import { fetchEvents, fetchNews, fetchProductions, fetchVenues } from '/api.js';
+import { dateRange, dayHeading, daysSince, fetched, groupByDay, price, runLabel, time, today, utdrag, venueLabel } from '/format.js';
 import { initDrift } from '/drift.js';
 import { VERSION } from '/version.js';
 
@@ -57,6 +57,7 @@ const PERIODER = [
 const VYER = [
   ['', 'Dag för dag'],
   ['repertoar', 'Repertoar'],
+  ['nytt', 'Nytt'],
 ];
 
 const SIDSTORLEK = 60;
@@ -234,6 +235,16 @@ async function hämta({ ersätt, tyst = false } = {}) {
     // hade svarat på en fråga ingen ställde.
     const { from, to } = state.view === 'repertoar' ? { from: '', to: '' } : dateRange(state.period);
 
+    if (state.view === 'nytt') {
+      const nyheter = await fetchNews();
+      laddade = ritaNytt(nyheter);
+      el.more.hidden = true;
+      sätt(laddade.length
+        ? `${laddade.length} nyheter de senaste ${nyheter.days} dagarna`
+        : `Inget nytt de senaste ${nyheter.days} dagarna.`, laddade.length ? 'ok' : 'warn');
+      return;
+    }
+
     const data = state.view === 'repertoar'
       ? await fetchProductions({ ...state }, { limit: SIDSTORLEK })
       : await fetchEvents({ ...state, from, to }, { limit: SIDSTORLEK });
@@ -378,8 +389,103 @@ function ritaVyer() {
   }
   el.views.replaceChildren(frag);
 
-  // Datumraden hör inte till repertoaren. Se kommentaren i hämta().
-  el.dates.hidden = state.view === 'repertoar';
+  // Filter som inte betyder något i vyn göms hellre än visas döda. Datum hör
+  // inte till repertoaren, och nyhetsflödet tar inga filter alls utöver scenen
+  // - att låta kategoriknapparna stå kvar utan verkan vore att ljuga med
+  // gränssnittet.
+  el.dates.hidden = state.view !== '';
+  el.filters.hidden = state.view === 'nytt';
+  el.search.hidden = state.view === 'nytt';
+}
+
+/**
+ * Nyheterna: nya uppsättningar och nya recensioner.
+ *
+ * Scenfiltret gäller här också, men filtreras i webbläsaren - ändpunkten tar
+ * inga parametrar med flit, så att flödena hämtas som mest två gånger i timmen
+ * oavsett hur många som besöker sidan.
+ *
+ * Returnerar de ritade posterna, så att statusraden kan räkna dem.
+ */
+function ritaNytt({ productions = [], reviews = [] }) {
+  const hus = state.venue;
+  const nya = hus ? productions.filter((p) => p.venue_slug === hus) : productions;
+  const rec = hus ? reviews.filter((r) => r.production?.venue_slug === hus) : reviews;
+
+  const frag = document.createDocumentFragment();
+
+  if (rec.length) {
+    frag.append(rubrik('Recenserat'));
+    for (const r of rec) frag.append(recensionskort(r));
+  }
+
+  if (nya.length) {
+    frag.append(rubrik('Nytt på scenerna'));
+    for (const p of nya) frag.append(nyhetskort(p));
+  }
+
+  el.results.replaceChildren(frag);
+  return [...rec, ...nya];
+}
+
+function rubrik(text) {
+  const li = document.createElement('li');
+  li.className = 'dayheading';
+  li.textContent = text;
+  return li;
+}
+
+/** En recension: vem som skrev, om vad, och en länk dit. */
+function recensionskort(r) {
+  const li = document.createElement('li');
+  li.className = 'card';
+
+  const kropp = document.createElement('div');
+  kropp.className = 'cardbody';
+
+  const titel = document.createElement('h2');
+  const länk = document.createElement('a');
+  länk.href = r.url;
+  länk.rel = 'noopener';
+  länk.target = '_blank';
+  länk.textContent = r.title ?? 'Recension';
+  titel.append(länk);
+  kropp.append(titel);
+
+  const fakta = document.createElement('p');
+  fakta.className = 'facts';
+  fakta.textContent = [
+    r.publisher,
+    r.production ? `om ${r.production.title} på ${r.production.venue}` : null,
+    r.published ? dayHeading(new Date(r.published).toISOString()) : null,
+  ].filter(Boolean).join(' · ');
+  kropp.append(fakta);
+
+  if (r.description) {
+    const text = document.createElement('p');
+    text.className = 'muted excerpt';
+    // Tidningens egen ingress. Aldrig artikeltexten - se avsnitt 7b.
+    text.textContent = utdrag(r.description);
+    kropp.append(text);
+  }
+
+  li.append(kropp);
+  return li;
+}
+
+/** En uppsättning som dykt upp hos oss sedan sist. */
+function nyhetskort(p) {
+  const li = uppsättning(p);
+  const kropp = li.querySelector('.cardbody');
+  const fakta = kropp?.querySelector('.facts');
+
+  if (fakta && p.announced_at) {
+    const när = document.createElement('span');
+    när.className = 'flag';
+    när.textContent = `Ny ${dayHeading(p.announced_at).toLowerCase()}`;
+    fakta.after(när);
+  }
+  return li;
 }
 
 /** En rad per uppsättning, med speltiden i stället för ett klockslag. */

@@ -208,6 +208,12 @@ on conflict (slug) do update
 -- ägarens. Utan den kringgår vyn RLS på tabellerna under, vilket är ofarligt så
 -- länge allt är publikt – men det är precis den sortens sak som blir en lucka
 -- den dagen något inte längre är det.
+-- Beroende vyer släpps först. upcoming_productions bygger på
+-- upcoming_events, och Postgres vägrar släppa en vy någon annan hänger på.
+-- Utan de här raderna slutade skriptet vara idempotent den dag
+-- uppsättningsvyn tillkom - och det märks först när någon kör om det.
+drop view if exists public.upcoming_productions;
+
 drop view if exists public.upcoming_events;
 create view public.upcoming_events
 with (security_invoker = true) as
@@ -233,6 +239,9 @@ select
   e.currency,
   e.ticket_url,
   e.status,
+  -- När vi först såg raden, alltså när scenen annonserade den. Sätts en gång
+  -- och rörs aldrig av upserten - se kommentaren vid kolumnen.
+  e.first_seen_at,
   e.last_seen_at,
   -- Explicit cast: date_part returnerar double precision, och round(…, 0) på
   -- double finns inte i Postgres. Samma fälla som medianen i leasingprojektet.
@@ -334,7 +343,11 @@ select
   -- Antal rum uppsättningen spelas i. Fler än ett betyder att den turnerar
   -- inom huset, vilket är värt att visa.
   count(distinct stage) filter (where stage is not null)::integer as stages,
-  max(last_seen_at) as last_seen_at
+  max(last_seen_at) as last_seen_at,
+  -- Annonserad: när den första av uppsättningens rader dök upp hos oss. Det
+  -- är så nära "scenen berättade om den" vi kommer utan att läsa deras
+  -- pressmeddelanden, och det kräver ingen ny källa.
+  min(first_seen_at) as announced_at
 from nycklade
 group by production_key, source;
 

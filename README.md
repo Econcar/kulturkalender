@@ -41,6 +41,8 @@ scanner/             Skannern. Körs av GitHub Actions, inte av webbläsaren
   lib/                 Dubblettfilter, Supabase-skrivning med service-nyckeln,
                        och filesink.mjs som skriver till JSON i stället
 functions/api/       Pages Functions, en fil per endpoint
+  news.js              Nyhetsvyn: nya uppsättningar ur first_seen_at, och
+                       recensioner matchade mot flödena vid förfrågan
 lib/                 Delad logik: ld+json, HTTP, Event-tolkning, textstädning.
                      Inga Node-API:er – koden körs både i Node och på Workers
 db/                  SQL-schema för Supabase + RLS-testet
