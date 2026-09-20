@@ -16,8 +16,8 @@
 // Körs av .github/workflows/reviews.yml varje natt, som sparar filen som
 // artefakt. Ingen databas, inga secrets.
 
-import { writeFile } from 'node:fs/promises';
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 
 import { fetchText, isAllowedByRobots, sleep } from '../../lib/http.mjs';
 import { parseFeed } from '../../lib/rss.mjs';
@@ -83,6 +83,10 @@ async function main() {
 
   rapport({ poster, recensioner, matchade, omatchade });
 
+  // Mappen finns inte i en färsk checkout: data/ är gitignorerad. Utan det
+  // här föll körningen på sista raden med ENOENT - efter att ha gjort allt
+  // arbetet, och med tom artefakt som följd. Samma mönster som filesink.mjs.
+  await mkdir(dirname(ut), { recursive: true });
   await writeFile(ut, `${JSON.stringify({
     collected_at: new Date().toISOString(),
     productions: uppsättningar.length,
