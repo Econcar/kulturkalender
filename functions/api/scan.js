@@ -22,7 +22,8 @@ const WORKFLOW = 'scan.yml';
 export const onRequestOptions = options;
 
 export async function onRequestGet({ request, env }) {
-  if (!authorized(request, env)) return fail('fel eller saknad nyckel', 401);
+  const orsak = avslag(request, env);
+  if (orsak) return avslagssvar(orsak);
 
   try {
     const run = await latestRun(env);
@@ -33,7 +34,8 @@ export async function onRequestGet({ request, env }) {
 }
 
 export async function onRequestPost({ request, env }) {
-  if (!authorized(request, env)) return fail('fel eller saknad nyckel', 401);
+  const orsak = avslag(request, env);
+  if (orsak) return avslagssvar(orsak);
 
   let run;
   try {
@@ -62,11 +64,30 @@ export async function onRequestPost({ request, env }) {
   return json({ started: true, cooldown_minutes: COOLDOWN_MINUTER }, { maxAge: 0 });
 }
 
-function authorized(request, env) {
-  const nyckel = env.SCAN_TRIGGER_KEY;
-  // Saknas nyckeln i miljön är knappen avstängd, inte öppen.
-  if (!nyckel) return false;
-  return secretsEqual(request.headers.get('x-scan-key'), nyckel);
+/**
+ * Varför ett anrop avvisas: 'avstängd', 'fel nyckel' eller null om det är i sin
+ * ordning.
+ *
+ * Skillnaden mellan de två är värd att svara olika på. Tidigare gav båda samma
+ * 401, och då gick det inte att se utifrån om knappen var felkonfigurerad eller
+ * om nyckeln bara var fel - inte ens för den som äger sidan. "Jag är osäker på
+ * om knappen fungerar" ska vara en fråga man kan besvara med ett anrop.
+ *
+ * Att avslöja att knappen är avstängd är ingen svaghet. Det hjälper ingen att
+ * gissa nyckeln; det säger bara att det inte är någon idé att försöka.
+ */
+function avslag(request, env) {
+  if (!env.SCAN_TRIGGER_KEY) return 'avstängd';
+  return secretsEqual(request.headers.get('x-scan-key'), env.SCAN_TRIGGER_KEY)
+    ? null
+    : 'fel nyckel';
+}
+
+/** Svaret på ett avslag. Avstängd är ett driftläge, fel nyckel ett anropsfel. */
+function avslagssvar(orsak) {
+  return orsak === 'avstängd'
+    ? fail('skanningsknappen är inte uppsatt: SCAN_TRIGGER_KEY saknas i Pages-miljön', 503)
+    : fail('fel eller saknad nyckel', 401);
 }
 
 /** Senaste körningen av skanningsjobbet, eller null om ingen finns. */

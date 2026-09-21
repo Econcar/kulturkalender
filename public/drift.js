@@ -42,6 +42,11 @@ async function starta({ knapp, status, onDone }) {
     const res = await fetch('/api/scan', { method: 'POST', headers: { 'x-scan-key': nyckel } });
     const data = await res.json().catch(() => ({}));
 
+    if (res.status === 503) {
+      // Knappen är inte uppsatt i miljön. Nyckeln är oskyldig - be inte om en ny.
+      sätt(status, data.error ?? 'Knappen är inte uppsatt i den här miljön.', 'warn');
+      return;
+    }
     if (res.status === 401) {
       // Fel nyckel: glöm den, annars sitter man fast med en som aldrig fungerar.
       glömNyckel();
