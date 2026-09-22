@@ -132,6 +132,8 @@ function init() {
   hämta({ ersätt: true });
   hämtaScener();
 
+  registreraSkal();
+
   // Driftkontrollerna. De visar sig bara för den som har nyckeln, och när ett
   // svep är klart hämtas listan om utan att sidan behöver laddas.
   initDrift({
@@ -636,4 +638,28 @@ function debounce(fn, ms) {
     clearTimeout(timer);
     timer = setTimeout(() => fn(...args), ms);
   };
+}
+
+/**
+ * Registrerar service workern.
+ *
+ * Den har funnits sedan pivoten och aldrig körts: public/sw.js skrevs, testades
+ * av tests/version.test.mjs, listades i README som PWA-skal - men ingenting
+ * anropade register(). Hela offline-historien var alltså påhittad, och varje
+ * versionshöjning "för cachens skull" påverkade ingenting. Att ett test vaktade
+ * filen gjorde felet svårare att se, inte lättare: det bevisade att sw.js var
+ * konsekvent med sig själv, inte att den användes.
+ *
+ * Registreringen är tyst om den faller. En sida som fungerar online ska inte
+ * visa ett fel om den inte dessutom lyckas fungera offline.
+ */
+function registreraSkal() {
+  if (!('serviceWorker' in navigator)) return;
+
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // Privat läge, blockerad webbplatsdata, eller osäker anslutning.
+      // Listan fungerar ändå - bara inte utan nät.
+    });
+  });
 }

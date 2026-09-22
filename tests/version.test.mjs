@@ -56,3 +56,14 @@ test('skalet pekar inte på filer som inte finns', () => {
     );
   }
 });
+
+test('service workern registreras faktiskt någonstans', () => {
+  // Den fanns i ett halvår utan att köras: filen skrevs, testerna vaktade
+  // den, README kallade den PWA-skal - men ingenting anropade register().
+  // Testerna bevisade att sw.js var konsekvent med sig själv, inte att den
+  // användes, och det gjorde felet svårare att se snarare än lättare.
+  const app = läs('public/app.js');
+
+  assert.ok(app.includes('serviceWorker'), 'ingen kod registrerar public/sw.js');
+  assert.ok(app.includes("register('/sw.js')"), 'registreringen pekar inte på /sw.js');
+});
