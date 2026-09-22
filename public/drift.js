@@ -180,13 +180,40 @@ async function visaLäge({ status, fält }) {
   }
   try {
     const res = await fetch('/api/scan', { headers: { 'x-scan-key': nyckel } });
-    if (!res.ok) return;
+
+    // Ett avslag här måste synas. Tidigare returnerade den här funktionen tyst
+    // på allt som inte var ok, och följden var att en sparad nyckel som slutat
+    // gälla gjorde knappen stendöd: fältet göms när en nyckel finns, servern
+    // nekar den, och ingenting på sidan berättar varför. Man tryckte på en
+    // knapp som redan hade fått nej.
+    if (res.status === 503) {
+      const data = await res.json().catch(() => ({}));
+      sätt(status, data.error ?? 'Knappen är inte uppsatt i den här miljön.', 'warn');
+      return;
+    }
+    if (res.status === 401) {
+      glömNyckel();
+      if (fält) {
+        fält.hidden = false;
+        fält.value = '';
+      }
+      sätt(status, 'Den sparade nyckeln godtogs inte. Skriv en ny i fältet.', 'error');
+      return;
+    }
+    if (!res.ok) {
+      sätt(status, `Servern svarade ${res.status}.`, 'error');
+      return;
+    }
+
     const data = await res.json();
     if (data.run?.status === 'in_progress' || data.run?.status === 'queued') {
       sätt(status, 'Skanning pågår …');
+    } else {
+      sätt(status, 'Klar att hämta.');
     }
   } catch {
-    // Tyst: det är en upplysning, inte en förutsättning.
+    // Nätfel får vara tyst: det är en upplysning vid inladdning, inte en
+    // förutsättning för att knappen ska gå att trycka på.
   }
 }
 
