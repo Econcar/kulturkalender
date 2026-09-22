@@ -281,6 +281,18 @@ main { max-width: 46rem; margin: 0 auto; }
   gap: 0.6rem;
   margin-top: 0.75rem;
 }
+.driftkey {
+  padding: 0.4rem 0.6rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  max-width: 12rem;
+}
+.driftkey:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
 .driftstatus { font-size: 0.8rem; color: var(--muted); }
 .driftstatus[data-tone="error"] { color: #fca5a5; }
 .driftstatus[data-tone="warn"] { color: #fcd34d; }

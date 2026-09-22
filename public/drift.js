@@ -20,23 +20,50 @@ const MAX_POLL_MINUTER = 12;
  * onDone anropas när ett svep är klart, så att listan kan hämtas om utan att
  * besökaren behöver ladda sidan.
  */
-export function initDrift({ rot, knapp, status, onDone = () => {} } = {}) {
+export function initDrift({ rot, knapp, status, fält, onDone = () => {} } = {}) {
   if (!rot || !knapp || !status) return;
 
   const synlig = new URLSearchParams(location.search).has('drift') || Boolean(läsNyckel());
   rot.hidden = !synlig;
   if (!synlig) return;
 
-  knapp.addEventListener('click', () => starta({ knapp, status, onDone }));
-  visaLäge({ status });
+  // En sidladdning nollställer alltid knappen. Utan det kan den stå kvar som
+  // låst från en körning som aldrig rapporterade klart, och då händer
+  // ingenting när man trycker - vilket ser ut som att knappen är trasig.
+  knapp.disabled = false;
+  delete knapp.dataset.följer;
+
+  // Fältet syns bara när ingen nyckel är sparad. Tidigare frågade en
+  // window.prompt efter den, men Chrome kan tysta dialoger helt - och då
+  // returnerade den null, koden avbröt, och ingenting hände. En knapp som inte
+  // säger något när man trycker på den är värre än en som säger nej.
+  if (fält) {
+    fält.hidden = Boolean(läsNyckel());
+    fält.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') starta({ knapp, status, fält, onDone });
+    });
+  }
+
+  knapp.addEventListener('click', () => starta({ knapp, status, fält, onDone }));
+  visaLäge({ status, fält });
 }
 
-async function starta({ knapp, status, onDone }) {
-  const nyckel = läsNyckel() ?? fråga();
-  if (!nyckel) return;
+async function starta({ knapp, status, fält, onDone }) {
+  // Kvittot på trycket kommer först av allt. Varje väg härifrån skriver något,
+  // så att ett tryck aldrig kan se ut som att ingenting hände.
+  sätt(status, 'Startar …');
+
+  const nyckel = läsNyckel() ?? (fält?.value ?? '').trim();
+  if (!nyckel) {
+    if (fält) {
+      fält.hidden = false;
+      fält.focus();
+    }
+    sätt(status, 'Skriv driftnyckeln i fältet och tryck igen.', 'warn');
+    return;
+  }
 
   knapp.disabled = true;
-  sätt(status, 'Startar …');
 
   try {
     const res = await fetch('/api/scan', { method: 'POST', headers: { 'x-scan-key': nyckel } });
@@ -50,7 +77,12 @@ async function starta({ knapp, status, onDone }) {
     if (res.status === 401) {
       // Fel nyckel: glöm den, annars sitter man fast med en som aldrig fungerar.
       glömNyckel();
-      sätt(status, 'Nyckeln godtogs inte. Tryck igen för att skriva in en ny.', 'error');
+      if (fält) {
+        fält.hidden = false;
+        fält.value = '';
+        fält.focus();
+      }
+      sätt(status, 'Nyckeln godtogs inte. Skriv en ny i fältet.', 'error');
       return;
     }
     if (res.status === 429) {
@@ -66,6 +98,10 @@ async function starta({ knapp, status, onDone }) {
     }
 
     sparaNyckel(nyckel);
+    if (fält) {
+      fält.value = '';
+      fält.hidden = true;
+    }
     sätt(status, 'Skanningen startad. Tar ungefär fem minuter.');
     följ({ knapp, status, onDone, nyckel });
   } catch (err) {
@@ -135,10 +171,11 @@ function följ({ knapp, status, onDone, nyckel }) {
 }
 
 /** Vid inladdning: säg om en skanning redan pågår. */
-async function visaLäge({ status }) {
+async function visaLäge({ status, fält }) {
   const nyckel = läsNyckel();
   if (!nyckel) {
-    sätt(status, 'Nyckel krävs.');
+    if (fält) fält.hidden = false;
+    sätt(status, 'Skriv driftnyckeln och tryck på knappen.');
     return;
   }
   try {
@@ -153,10 +190,6 @@ async function visaLäge({ status }) {
   }
 }
 
-function fråga() {
-  const svar = window.prompt('Driftnyckel (SCAN_TRIGGER_KEY):');
-  return svar ? svar.trim() : null;
-}
 
 // localStorage kan kasta i privat läge eller när webbplatsdata är blockerad.
 // Knappen ska fungera ändå, bara utan att komma ihåg nyckeln.

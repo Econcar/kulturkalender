@@ -21,6 +21,9 @@
        spärren sitter i functions/api/scan.js, som kräver nyckeln. -->
   <div class="drift" id="drift" hidden>
     <button type="button" id="rescan" class="button">Hämta nytt från scenerna</button>
+    <label class="sr-only" for="driftnyckel">Driftnyckel</label>
+    <input type="password" id="driftnyckel" class="driftkey" placeholder="Driftnyckel"
+           autocomplete="off" hidden>
     <span class="driftstatus" id="driftstatus"></span>
   </div>
 </header>

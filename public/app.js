@@ -77,6 +77,7 @@ const el = {
   drift: document.getElementById('drift'),
   rescan: document.getElementById('rescan'),
   driftstatus: document.getElementById('driftstatus'),
+  driftnyckel: document.getElementById('driftnyckel'),
 };
 
 // Filtren ligger i adressfältet och inte i en variabel, så att en filtrerad
@@ -137,6 +138,7 @@ function init() {
     rot: el.drift,
     knapp: el.rescan,
     status: el.driftstatus,
+    fält: el.driftnyckel,
     onDone: () => {
       hämtaScener();
       hämta({ ersätt: true });
