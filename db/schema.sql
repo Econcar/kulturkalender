@@ -215,7 +215,11 @@ insert into public.venues (slug, name, url, address, lat, lng) values
   ('konserthuset', 'Konserthuset Stockholm', 'https://www.konserthuset.se',
    'Hötorget 8, 111 57 Stockholm', 59.334500, 18.063200),
   ('operan',      'Kungliga Operan', 'https://www.operan.se',
-   'Gustav Adolfs torg 2, 111 52 Stockholm', 59.329700, 18.070700)
+   'Gustav Adolfs torg 2, 111 52 Stockholm', 59.329700, 18.070700),
+  ('sodrateatern', 'Södra Teatern', 'https://sodrateatern.com',
+   'Mosebacke torg 1–3, 116 46 Stockholm', 59.318500, 18.074600),
+  ('folkoperan',  'Folkoperan', 'https://folkoperan.se',
+   'Hornsgatan 72, 118 21 Stockholm', 59.317300, 18.058200)
 on conflict (slug) do update
   set name = excluded.name,
       url = excluded.url,

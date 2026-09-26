@@ -27,13 +27,22 @@
 //                    på webapi.operan.se, som bara refereras från en chunk
 //                    huvudbunten importerar. Byggd, och den renaste källan av
 //                    alla fyra.
+//   'sodrateatern' – ld+json på varje sida, men startDate är dörrtiden. Tiden
+//                    tas ur sidans "Datum & tider". Byggd 2026-09-26.
+//   'folkoperan'   – ingen maskinläsbar data, men /kop-biljetter/ listar hela
+//                    programmet i ett anrop. Byggd 2026-09-26.
+//
+// Undersökta och bortvalda 2026-09-26: Playhouse Teater och Orionteatern har
+// sina datum bara hos Tickster, vars robots.txt stänger allt.
 
 import kulturhuset from './kulturhuset.mjs';
 import dramaten from './dramaten.mjs';
 import konserthuset from './konserthuset.mjs';
 import operan from './operan.mjs';
+import sodrateatern from './sodrateatern.mjs';
+import folkoperan from './folkoperan.mjs';
 
-const sources = [kulturhuset, dramaten, konserthuset, operan];
+const sources = [kulturhuset, dramaten, konserthuset, operan, sodrateatern, folkoperan];
 
 export default sources;
 

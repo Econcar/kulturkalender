@@ -57,7 +57,20 @@ på startsidan. Resultatet styr hela bygget, så det står här i sin helhet.
 | Konserthuset | Bara `og:`-taggar + datum i URL-slugen | 3 |
 | Operan, Fotografiska, Moderna Museet, Stockholm Live, Debaser | **Inte utrett** – bara listsidor nåddes | ? |
 
-**De fem sista är inte ett besked.** En listsida bär aldrig `Event`, inte hos
+**Teatrar, undersökta 2026-09-26** på evenemangssidorna, inte bara listorna:
+
+| Scen | Vad sidan bär | Utfall |
+| --- | --- | --- |
+| Södra Teatern | `ld+json` på varje sida, men `startDate` är **dörrtiden**. Tiden tas ur sidans "Datum & tider" ("På scen 20:00"). Adresserna ur WordPress-API:et, ett anrop. | Byggd |
+| Folkoperan | Inget maskinläsbart. `/kop-biljetter/` listar hela programmet serverrenderat, med datum, tid och biljettlänk; bild och uppsättningssida ur WordPress-API:et. | Byggd |
+| Playhouse Teater | Datumen bara hos Tickster. En uppsättning i taget. | Bortvald |
+| Orionteatern | Premiärdatum på egen sida, föreställningarna bara hos Tickster. | Vilande |
+
+Tickster, som både Playhouse och Orion säljer genom, har `Disallow: /` för
+alla. Det respekteras. Nästa teatrar att undersöka: Oscarsteatern, China
+Teatern, Göta Lejon, Maximteatern, Teater Giljotin, Strindbergs Intima Teater.
+
+**De fem sista i första tabellen är inte ett besked.** En listsida bär aldrig `Event`, inte hos
 Kulturhuset heller. De måste testas på en enskild evenemangssida innan någon
 säger något om dem.
 
