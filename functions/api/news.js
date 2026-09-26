@@ -1,26 +1,20 @@
 import { fail, json, options, supabaseRest } from './_shared.js';
-import { FLÖDEN, publicistNamn } from '../../lib/feeds.mjs';
-import { parseFeed } from '../../lib/rss.mjs';
-import { matchReview, parseReviewUrl } from '../../lib/review-match.mjs';
+import { reviewForPage } from '../../lib/review-match.mjs';
 
 // Nyhetssidan: vad som är nytt hos scenerna, och vad som skrivits om det.
 //
-// Två slags nyheter, och bara den ena kräver en ny källa.
+// Två slags nyheter, båda ur vår egen data.
 //
-// Nya uppsättningar kommer ur vår egen data. Skannern sätter first_seen_at en
-// gång per rad och rör den aldrig mer, så en uppsättning vars tidigaste rad
-// dök upp i går är en uppsättning scenen annonserade i går. Ingen extra
-// hämtning, inga pressmeddelanden att tolka.
+// Nya uppsättningar: skannern sätter first_seen_at en gång per rad och rör den
+// aldrig mer, så en uppsättning vars tidigaste rad dök upp i går är en
+// uppsättning scenen annonserade i går. Inga pressmeddelanden att tolka.
 //
-// Recensionerna matchas här och nu, mot flödena, utan att lagras. Det hade
-// varit rimligare att spara dem i databasen - men skrivningarna dit är trasiga
-// (se scanner/lib/supabase.mjs), och funktionen fungerar ändå: flödena bär
-// ändå bara ett par dygn, och svaret cachas en halvtimme. Blir lagring möjlig
-// är det en förbättring, inte en förutsättning.
+// Recensionerna: ur reviews-tabellen, som scanner/reviews/run.mjs fyller varje
+// natt. De matchades först här, mot flödena vid varje förfrågan - men flödena
+// glömmer inom en vecka, och då försvann recensionen från sidan.
 //
-// Ändpunkten tar inga parametrar. Det är med flit: en cachenyckel betyder att
-// flödena hämtas som mest två gånger i timmen oavsett hur många som besöker
-// sidan, och hyfsen mot tidningarna är samma sak som hyfsen mot scenerna.
+// Ändpunkten tar inga parametrar. Filtren görs i webbläsaren, och en enda
+// cachenyckel räcker.
 
 const CACHE_SEKUNDER = 1800;
 
@@ -33,7 +27,7 @@ export const onRequestOptions = options;
 export async function onRequestGet({ env }) {
   let uppsättningar;
   try {
-    // Alla, inte bara de nya: recensionerna matchas mot hela repertoaren.
+    // Alla, inte bara de nya: recensionerna slås upp i hela repertoaren.
     uppsättningar = await supabaseRest(env, 'upcoming_productions?select=*&limit=1000');
   } catch (err) {
     return fail(err.message, 502);
@@ -45,11 +39,11 @@ export async function onRequestGet({ env }) {
     .sort((a, b) => String(b.announced_at).localeCompare(String(a.announced_at)))
     .slice(0, 40);
 
-  // Recensionerna får falla utan att fälla nyheterna. Att en tidning ligger
-  // nere är inget skäl att dölja att Dramaten satt upp något nytt.
+  // Recensionerna får falla utan att fälla nyheterna. Saknas tabellen ännu är
+  // det inget skäl att dölja att Dramaten satt upp något nytt.
   let recensioner = [];
   try {
-    recensioner = await hämtaRecensioner(uppsättningar);
+    recensioner = await hämtaRecensioner(env, uppsättningar);
   } catch {
     recensioner = [];
   }
@@ -62,61 +56,17 @@ export async function onRequestGet({ env }) {
   }, { maxAge: CACHE_SEKUNDER });
 }
 
-async function hämtaRecensioner(uppsättningar) {
-  const poster = [];
-
-  const svar = await Promise.allSettled(FLÖDEN.map(async ([publicist, url]) => {
-    const res = await fetch(url, {
-      headers: { 'user-agent': 'kulturkalender/0.1 (+https://github.com/Econcar/kulturkalender)' },
-    });
-    if (!res.ok) throw new Error(`${publicist} svarade ${res.status}`);
-    return [publicist, parseFeed(await res.text())];
-  }));
-
-  for (const r of svar) {
-    if (r.status !== 'fulfilled') continue;
-    const [publicist, flöde] = r.value;
-    for (const post of flöde) poster.push({ ...post, publisher: publicist });
-  }
-
-  const ut = [];
-  for (const post of poster) {
-    if (!parseReviewUrl(post.url).isReview) continue;
-
-    const träff = matchReview(post, uppsättningar);
-    if (!träff) continue;
-
-    const p = uppsättningar.find((u) => u.production_key === träff.production_key);
-    ut.push({
-      url: post.url,
-      title: post.title,
-      // Tidningens egen ingress, inte artikeltexten. "ÅSA LINDERBORG ser en
-      // obegripligt svag Parzival på Dramaten" säger vem som skrivit och vad
-      // hen tyckte; rubriken säger varken vad eller vem. Brödtexten är
-      // kritikerns verk och sparas aldrig - se avsnitt 7b i projektstart.
-      description: post.description,
-      published: post.published,
-      publisher: publicistNamn(post.publisher),
-      confidence: träff.confidence,
-      production: p
-        ? {
-          production_key: p.production_key,
-          title: p.title,
-          venue: p.venue,
-          // Filtren i nyhetsvyn läser de här två. Utan venue_slug kunde
-          // scenfiltret aldrig träffa en recension.
-          venue_slug: p.venue_slug,
-          category: p.category,
-          url: p.url,
-        }
-        : null,
-    });
-  }
-
-  return ut.sort((a, b) => nyast(b.published) - nyast(a.published));
-}
-
-function nyast(datum) {
-  const t = new Date(datum ?? 0).getTime();
-  return Number.isNaN(t) ? 0 : t;
+/**
+ * Recensionerna från de senaste NYTT_DYGN dygnen, ur reviews-tabellen.
+ *
+ * Uppsättningarna skickas med för husets namn och kategorin, som filtren i
+ * nyhetsvyn läser.
+ */
+async function hämtaRecensioner(env, uppsättningar) {
+  const gräns = new Date(Date.now() - NYTT_DYGN * 86_400_000).toISOString();
+  const rader = await supabaseRest(
+    env,
+    `reviews?select=*&published_at=gte.${gräns}&order=published_at.desc&limit=100`,
+  );
+  return rader.map((r) => reviewForPage(r, uppsättningar));
 }

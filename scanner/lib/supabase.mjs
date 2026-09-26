@@ -79,6 +79,30 @@ export function createClient({ url, serviceKey, dryRun = false } = {}) {
     },
 
     /**
+     * Upsert på url. first_seen_at skickas aldrig och står därför kvar från
+     * första gången recensionen sågs; last_seen_at flyttas fram varje natt
+     * den fortfarande finns i flödet.
+     */
+    async upsertReviews(reviews) {
+      const rows = (reviews ?? []).map(stripGenerated).map((row) => ({
+        ...row,
+        last_seen_at: new Date().toISOString(),
+      }));
+      if (!rows.length) return 0;
+      if (isDryRun) {
+        console.log(`[dry-run] skulle upserta ${rows.length} recensioner`);
+        return rows.length;
+      }
+
+      await request('reviews?on_conflict=url', {
+        method: 'POST',
+        body: rows,
+        prefer: 'resolution=merge-duplicates,return=minimal',
+      });
+      return rows.length;
+    },
+
+    /**
      * Startar en rad i scan_runs och returnerar en avslutare.
      *
      * Misslyckas skrivningen fortsätter skanningen ändå. Driftloggen är en

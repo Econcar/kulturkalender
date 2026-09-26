@@ -87,11 +87,26 @@ export async function fetchProductions(state, { limit = 100, fetchImpl = fetch }
 /**
  * Nyheterna: nya uppsättningar och nya recensioner.
  *
- * Tar inga filter. Ändpunkten hämtar tidningarnas flöden vid förfrågan, och
- * en enda cachenyckel betyder att de hämtas som mest två gånger i timmen
- * oavsett hur många som besöker sidan. Scenfiltret läggs på i webbläsaren.
+ * Tar inga filter - en enda cachenyckel räcker, och scen och kategori läggs
+ * på i webbläsaren.
  */
 export async function fetchNews({ fetchImpl = fetch } = {}) {
   const res = await fetchImpl('/api/news');
   return parseResponse(res, { nyckel: 'productions' });
+}
+
+/**
+ * Alla sparade recensioner, för korten.
+ *
+ * Som husen: faller listan bort visas korten utan recensioner i stället för
+ * att sidan slutar fungera.
+ */
+export async function fetchReviews({ fetchImpl = fetch } = {}) {
+  try {
+    const res = await fetchImpl('/api/reviews');
+    const data = await parseResponse(res, { nyckel: 'reviews' });
+    return data.reviews;
+  } catch {
+    return [];
+  }
 }

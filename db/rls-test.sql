@@ -32,6 +32,10 @@ values ('rls-test', 'rls-1', 'RLS-testevenemanget', 'konsert', 'RLS-testscenen',
 insert into public.scan_runs (source, status, rows_found, rows_upserted)
 values ('rls-test', 'ok', 1, 1);
 
+insert into public.reviews (url, publisher, title, production_key, confidence)
+values ('https://exempel.se/rls-test-recension', 'rls-test', 'RLS-testrecensionen',
+        'rls-test|x', 'hög');
+
 -- ---------------------------------------------------------------------------
 -- Del 1: anon ska kunna läsa
 -- ---------------------------------------------------------------------------
@@ -57,6 +61,11 @@ begin
     raise exception 'FEL: anon såg % rader i scan_runs, väntade 1', n;
   end if;
 
+  select count(*) into n from public.reviews where publisher = 'rls-test';
+  if n <> 1 then
+    raise exception 'FEL: anon såg % rader i reviews, väntade 1', n;
+  end if;
+
   -- Vyn är sidans faktiska ingång. Går tabellen att läsa men inte vyn står
   -- sidan tom medan SQL-editorn visar rader, och felet ser ut som ett nätfel.
   select count(*) into n from public.upcoming_events where title = 'RLS-testevenemanget';
@@ -64,7 +73,7 @@ begin
     raise exception 'FEL: anon såg % rader i upcoming_events, väntade 1', n;
   end if;
 
-  raise notice 'OK: anon kan läsa events, venues, scan_runs och upcoming_events';
+  raise notice 'OK: anon kan läsa events, venues, scan_runs, reviews och upcoming_events';
 end;
 $$;
 
@@ -120,11 +129,21 @@ begin
     when insufficient_privilege then nekade := nekade + 1;
   end;
 
-  if nekade <> 5 then
-    raise exception 'FEL: bara % av 5 skrivförsök nekades', nekade;
+  -- En falsk recension på en riktig uppsättning är precis den sortens
+  -- sabotage som syns: den står på kortet med en tidnings namn.
+  begin
+    insert into public.reviews (url, publisher, production_key, confidence)
+    values ('https://exempel.se/falsk', 'aftonbladet', 'dramaten|x', 'hög');
+    raise exception 'FEL: anon kunde INSERTa i reviews';
+  exception
+    when insufficient_privilege then nekade := nekade + 1;
+  end;
+
+  if nekade <> 6 then
+    raise exception 'FEL: bara % av 6 skrivförsök nekades', nekade;
   end if;
 
-  raise notice 'OK: alla 5 skrivförsök från anon nekades';
+  raise notice 'OK: alla 6 skrivförsök från anon nekades';
 end;
 $$;
 

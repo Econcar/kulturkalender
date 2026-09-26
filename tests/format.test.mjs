@@ -199,3 +199,25 @@ test('nyhetsvyn filtreras på kategori och scen', async () => {
   // Utan filter visas allt, också recensionen som inte hittade sin uppsättning.
   assert.equal(filtreraNytt(nyheter, {}).reviews.length, 3);
 });
+
+test('en rad som täcker flera dagar får sin speltid', async () => {
+  const { speltid } = await import('../public/format.js');
+  const nu = new Date('2026-09-26T12:00:00Z');
+
+  assert.equal(
+    speltid({ starts_at: '2026-09-26T17:30:00Z', ends_at: '2026-11-05T20:00:00Z', category: 'teater' }, nu),
+    'Spelas 26 september – 5 november',
+  );
+  // Året skrivs ut när spannet går in i nästa år, som i runLabel.
+  assert.equal(
+    speltid({ starts_at: '2026-09-27T09:00:00Z', ends_at: '2027-01-10T16:00:00Z', category: 'utställning' }, nu),
+    'Pågår 27 september – 10 januari 2027',
+  );
+});
+
+test('en kväll får ingen speltid, inte heller en som slutar efter midnatt', async () => {
+  const { speltid } = await import('../public/format.js');
+  assert.equal(speltid({ starts_at: '2026-09-26T20:00:00Z', ends_at: '2026-09-27T01:00:00Z' }), '');
+  assert.equal(speltid({ starts_at: '2026-09-26T20:00:00Z', ends_at: null }), '');
+  assert.equal(speltid({}), '');
+});

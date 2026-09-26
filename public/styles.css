@@ -223,6 +223,8 @@ main { max-width: 46rem; margin: 0 auto; }
   font-size: 0.85rem;
   color: var(--muted);
 }
+.reviewed a { color: var(--accent); }
+.reviewed .ingress { font-style: italic; }
 
 .excerpt {
   margin: 0;

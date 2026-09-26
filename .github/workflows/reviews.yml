@@ -1,15 +1,12 @@
 name: Läs recensioner
 
-# Steg tre av recensionsfunktionen: samla in och titta, skriv ingenting.
+# Läser kultursektionernas flöden, matchar mot uppsättningarna på sidan och
+# sparar de matchade recensionerna i Supabase. Allt körningen såg - matchat och
+# omatchat - sparas dessutom som artefakt, eftersom en för snäv regel bara syns
+# bland de omatchade.
 #
-# Körningen läser kultursektionernas flöden, matchar mot uppsättningarna på
-# sidan och sparar allt den såg som en artefakt - matchat, omatchat och
-# bortsorterat. Efter en vecka finns sju filer att läsa, och då vet vi hur ofta
-# Stockholms fyra hus faktiskt recenseras.
-#
-# Ingen databas och inga secrets. Uppsättningarna läses från det publika
-# API:et, vilket också betyder att jobbet inte kan gå sönder på något sätt som
-# påverkar kalendern.
+# Uppsättningarna läses från det publika API:et. Jobbet skriver bara till
+# reviews-tabellen och kan inte påverka evenemangen.
 
 on:
   schedule:
@@ -35,11 +32,13 @@ jobs:
           node-version: '24'
 
       - name: Läs flödena
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scanner/reviews/run.mjs
 
-      # Artefakt och inte en commit: det här är observationer under en vecka,
-      # inte källkod. Sju filer i repot hade varit sju commits som ingen vill
-      # läsa, och artefakter försvinner av sig själva när frågan är besvarad.
+      # Artefakt och inte en commit: det här är observationer, inte källkod,
+      # och de försvinner av sig själva efter en månad.
       - name: Spara observationerna
         if: always()
         uses: actions/upload-artifact@v4

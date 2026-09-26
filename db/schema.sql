@@ -156,6 +156,43 @@ create table if not exists public.scan_runs (
 create index if not exists scan_runs_source_started_idx
   on public.scan_runs (source, started_at desc);
 
+-- Recensionerna, matchade mot en uppsättning. Se avsnitt 7b i
+-- docs/projektstart.md.
+--
+-- Bara det som står i tidningens flöde: rubrik, ingress, datum och länk.
+-- Kritikerns brödtext sparas aldrig - den är hennes verk, inte vår data.
+--
+-- Tabellen finns för att flödena glömmer. De bär ett par hundra poster, och en
+-- recension är borta ur dem inom någon vecka - långt innan uppsättningen har
+-- slutat spelas. Matchades de vid förfrågan, som först, försvann recensionen
+-- från sidan medan pjäsen den handlar om fortfarande gick.
+--
+-- production_title, venue_slug och category är en ögonblicksbild från
+-- matchningen. En uppsättning som spelat klart försvinner ur
+-- upcoming_productions, men recensionen av den är fortfarande en recension av
+-- något bestämt - och ska gå att hitta med scen- och kategorifiltret.
+create table if not exists public.reviews (
+  url              text primary key check (url ~ '^https://'),
+  publisher        text not null,
+  title            text,
+  description      text,
+  published_at     timestamptz,
+  production_key   text not null,
+  production_title text,
+  venue_slug       text,
+  confidence       text not null,
+  first_seen_at    timestamptz not null default now(),
+  last_seen_at     timestamptz not null default now(),
+  constraint reviews_confidence_check check (confidence in ('hög', 'osäker'))
+);
+
+-- Tillkom efter tabellen. alter och inte en rad i create table, så att filen
+-- fortsätter att gå att köra mot en databas där tabellen redan finns.
+alter table public.reviews add column if not exists category text;
+
+create index if not exists reviews_production_idx on public.reviews (production_key);
+create index if not exists reviews_published_idx on public.reviews (published_at desc);
+
 -- ---------------------------------------------------------------------------
 -- Husen
 -- ---------------------------------------------------------------------------
@@ -358,6 +395,7 @@ group by production_key, source;
 alter table public.venues    enable row level security;
 alter table public.events    enable row level security;
 alter table public.scan_runs enable row level security;
+alter table public.reviews   enable row level security;
 
 -- Policyer skrivs om vid varje körning, så skriptet förblir idempotent.
 --
@@ -382,6 +420,11 @@ create policy "driftloggen är läsbar för alla"
   on public.scan_runs for select
   using (true);
 
+drop policy if exists "recensionerna är läsbara för alla" on public.reviews;
+create policy "recensionerna är läsbara för alla"
+  on public.reviews for select
+  using (true);
+
 -- ---------------------------------------------------------------------------
 -- Rättigheter
 -- ---------------------------------------------------------------------------
@@ -390,7 +433,7 @@ create policy "driftloggen är läsbar för alla"
 -- till tabellen, policyn avgör vilka rader den ser. Utan select-grant får anon
 -- ett "permission denied" innan policyn ens körs.
 grant usage on schema public to anon, authenticated;
-grant select on public.venues, public.events, public.scan_runs to anon, authenticated;
+grant select on public.venues, public.events, public.scan_runs, public.reviews to anon, authenticated;
 grant select on public.upcoming_events, public.venue_summary to anon, authenticated;
 grant select on public.upcoming_productions to anon, authenticated;
 
@@ -398,3 +441,4 @@ grant select on public.upcoming_productions to anon, authenticated;
 revoke insert, update, delete on public.venues    from anon, authenticated;
 revoke insert, update, delete on public.events    from anon, authenticated;
 revoke insert, update, delete on public.scan_runs from anon, authenticated;
+revoke insert, update, delete on public.reviews   from anon, authenticated;

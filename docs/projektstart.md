@@ -243,7 +243,7 @@ Hållningen:
 Skulle någon scen be oss sluta är det rimliga svaret att ta bort dem, inte att
 argumentera. En adapter är en fil och en rad i `index.mjs`.
 
-## 7b. Recensioner: undersökt 2026-09-20, halvbyggt
+## 7b. Recensioner: undersökt 2026-09-20, byggt 2026-09-26
 
 Målet är att se recensioner i anslutning till uppsättningarna. Hämtningen är
 inte problemet - fyra av fem kultursektioner har öppna RSS-flöden som robots
@@ -290,9 +290,18 @@ Klart: `parseSwedishDate` i `lib/event.mjs`, premiärdatum i två adaptrar,
 verkliga flödesposter. Av dem matchar exakt en - Parzival på Dramaten, premiär
 9 september, recenserad 17 september - och ingen matchar fel.
 
-Kvar: läs flödena och spara omatchat en vecka innan tabellen och gränssnittet
-byggs. Det är den veckan som avgör om funktionen är värd att ha, och frågan
-"hur ofta recenseras Stockholms fyra hus?" besvaras inte av mer resonerande.
+Veckan av insamling (20-26 september) gav svaret: **en** matchning på sju
+dagar, Parzival, av 15-20 recensioner per dag i flödena. Men regeln missade
+ingen - alla 35 omatchade gällde andra scener (Malmö, Göteborg, Norrköping,
+Riksteatern, Playhouse, Teater Giljotin, Tensta konsthall) eller böcker. De
+fyra husen recenseras alltså sällan, och fler recensioner kommer med fler
+scener, inte med en lösare regel.
+
+Byggt: tabellen `reviews`, som den nattliga insamlingen fyller. Den behövs för
+att flödena glömmer - en recension är borta ur dem inom någon vecka, medan
+pjäsen spelas i månader. Korten i Dag för dag och Repertoar visar "Recenserad
+i Aftonbladet 17 september" med länk, och nyhetsvyn läser tabellen i stället
+för flödena.
 
 Två gränser satta med flit. Recensionstexten sparas aldrig - rubrik, tidning,
 datum och länk är försvarbart, en kritikers brödtext är det inte, och det är en

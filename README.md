@@ -157,6 +157,10 @@ får innehålla `/rest/v1/`.
 - [x] Adapter för Kungliga Operan – rent JSON ur `webapi.operan.se`, som bara
       refereras från en chunk huvudbunten importerar. Bokfördes först som omöjlig
 - [x] Datumfilter i gränssnittet: i dag, i morgon, i helgen, den här veckan
+- [x] Speltid på kortet: "Spelas 13 september – 8 november" när en rad täcker
+      mer än en kväll
+- [x] Recensioner: sparas i `reviews` av den nattliga insamlingen, visas på
+      korten och i nyhetsvyn. Se avsnitt 7b i projektstart.md
 - [ ] Fas 5: dubbletter mellan källor – `groupDuplicates` finns, används inte
 - [ ] Utred Fotografiska, Moderna Museet, Stockholm Live och Debaser.
       Bara deras listsidor har testats, vilket inte säger något

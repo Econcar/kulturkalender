@@ -1,20 +1,19 @@
 #!/usr/bin/env node
-// Läser kultursektionernas flöden och försöker koppla recensionerna till våra
-// uppsättningar. Skriver INGENTING till databasen.
+// Läser kultursektionernas flöden, kopplar recensionerna till våra
+// uppsättningar och sparar de matchade i reviews-tabellen.
 //
-// Det är avsiktligt, och det är hela steg tre. Frågan som ska besvaras är inte
-// "fungerar koden" - det vet vi, lib/review-match.mjs är testad mot tjugoen
-// verkliga poster - utan "hur ofta recenseras Stockholms fyra hus?". Den frågan
-// besvaras av en veckas insamling, inte av mer resonerande. Bygger vi tabellen
-// och gränssnittet först och svaret blir "en gång i veckan", har vi byggt en
-// funktion som nästan alltid är tom.
+// Veckan av insamling utan databas (20-26 september) svarade på frågan den
+// skulle: Stockholms fyra hus recenseras sällan - en matchning på sju dagar,
+// Parzival på Dramaten - men regeln missade ingen. Alla 35 omatchade
+// recensioner gällde andra scener eller böcker. Tabellen byggdes för att
+// flödena glömmer: en recension är borta ur dem inom någon vecka, långt innan
+// pjäsen slutat spelas.
 //
-// Körningen skriver därför en fil med allt den såg: matchat, omatchat och
-// bortsorterat. De omatchade är det intressanta - de visar om regeln är för
-// snäv, vilket är det fel som inte syns i någon annan mätning.
+// Filen med allt körningen såg skrivs fortfarande. De omatchade är det enda
+// stället där en för snäv regel syns.
 //
-// Körs av .github/workflows/reviews.yml varje natt, som sparar filen som
-// artefakt. Ingen databas, inga secrets.
+// Körs av .github/workflows/reviews.yml varje natt. Utan Supabase-nycklar, och
+// med --local, skrivs bara filen.
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
@@ -22,8 +21,9 @@ import { dirname } from 'node:path';
 import { fetchText, isAllowedByRobots, sleep } from '../../lib/http.mjs';
 import { FLÖDEN } from '../../lib/feeds.mjs';
 import { parseFeed } from '../../lib/rss.mjs';
-import { matchReview, parseReviewUrl } from '../../lib/review-match.mjs';
+import { matchReview, parseReviewUrl, reviewRow } from '../../lib/review-match.mjs';
 import { upcomingEvents, upcomingProductions } from '../../lib/upcoming.mjs';
+import { createClient } from '../lib/supabase.mjs';
 
 
 const SIDA = 'https://receptbok.pages.dev';
@@ -66,13 +66,33 @@ async function main() {
     const träff = matchReview(r, uppsättningar);
     if (träff) {
       const p = uppsättningar.find((u) => u.production_key === träff.production_key);
-      matchade.push({ ...r, match: träff, production: { title: p?.title, venue: p?.venue } });
+      matchade.push({
+        ...r,
+        match: träff,
+        production: { title: p?.title, venue: p?.venue },
+        row: reviewRow(r, träff, p),
+      });
     } else {
       omatchade.push(r);
     }
   }
 
   rapport({ poster, recensioner, matchade, omatchade });
+
+  // Databasen efter rapporten, så att loggen visar vad som hittades även när
+  // skrivningen fallerar. Filen skrivs oavsett, och felet kastas först sist.
+  let skrivfel = null;
+  if (!lokalt && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const n = await createClient().upsertReviews(matchade.map((m) => m.row));
+      log(`\n${n} recensioner sparade i databasen.`);
+    } catch (err) {
+      skrivfel = err;
+      log(`\nKunde inte spara recensionerna: ${err.message}`);
+    }
+  } else {
+    log('\nIngen databas - bara filen skrivs.');
+  }
 
   // Mappen finns inte i en färsk checkout: data/ är gitignorerad. Utan det
   // här föll körningen på sista raden med ENOENT - efter att ha gjort allt
@@ -87,6 +107,8 @@ async function main() {
     unmatched: omatchade,
   }, null, 1)}\n`);
   log(`\nSkrivet till ${ut}.`);
+
+  if (skrivfel) throw skrivfel;
 }
 
 function rapport({ poster, recensioner, matchade, omatchade }) {

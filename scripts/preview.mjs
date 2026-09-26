@@ -17,9 +17,9 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { applyFilters, upcomingEvents, upcomingProductions, venueSummary } from '../lib/upcoming.mjs';
-import { FLÖDEN, publicistNamn } from '../lib/feeds.mjs';
+import { FLÖDEN } from '../lib/feeds.mjs';
 import { parseFeed } from '../lib/rss.mjs';
-import { matchReview, parseReviewUrl } from '../lib/review-match.mjs';
+import { matchReview, parseReviewUrl, reviewForPage, reviewRow } from '../lib/review-match.mjs';
 
 const rot = fileURLToPath(new URL('..', import.meta.url));
 const PUBLIC = join(rot, 'public');
@@ -44,6 +44,7 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/api/venues') return venues(res);
   if (url.pathname === '/api/productions') return productions(url, res);
   if (url.pathname === '/api/news') return news(res);
+  if (url.pathname === '/api/reviews') return reviews(res);
   if (url.pathname === '/api/scan') {
     // Knappen startar ett GitHub Actions-jobb, och det gör bara den utrullade
     // Pages Functionen. Ett tydligt svar är bättre än en 404 som ser ut som
@@ -64,9 +65,6 @@ const server = createServer(async (req, res) => {
 
 /**
  * Nyheterna. Motsvarar functions/api/news.js.
- *
- * Hämtar flödena på riktigt, precis som drift gör - det är ju där
- * matchningen kan visa sig vara fel, och en stubbe hade dolt just det.
  */
 async function news(res) {
   const uppsättningar = upcomingProductions(upcomingEvents(await läsData()));
@@ -77,7 +75,36 @@ async function news(res) {
     .sort((a, b) => String(b.announced_at).localeCompare(String(a.announced_at)))
     .slice(0, 40);
 
-  const recensioner = [];
+  const recensioner = (await recensionsrader(uppsättningar))
+    .filter((r) => r.published_at && new Date(r.published_at).getTime() >= gräns)
+    .map((r) => reviewForPage(r, uppsättningar));
+
+  json(res, { generated_at: new Date().toISOString(), days: 14, productions: nya, reviews: recensioner });
+}
+
+/** Recensionerna. Motsvarar functions/api/reviews.js. */
+async function reviews(res) {
+  const uppsättningar = upcomingProductions(upcomingEvents(await läsData()));
+  const recensioner = (await recensionsrader(uppsättningar)).map((r) => reviewForPage(r, uppsättningar));
+  json(res, { generated_at: new Date().toISOString(), count: recensioner.length, reviews: recensioner });
+}
+
+/**
+ * Rader i reviews-tabellens form, matchade mot flödena här och nu.
+ *
+ * Lokalt finns ingen tabell, så flödena läses på riktigt - det är ju där
+ * matchningen kan visa sig vara fel, och en stubbe hade dolt just det. Samma
+ * reviewRow som insamlingen använder, så formen är densamma som i drift.
+ *
+ * Svaret sparas en halvtimme, som i drift. Sidan frågar både /api/news och
+ * /api/reviews, och tidningarna ska inte få två anrop per sidladdning.
+ */
+let recensionscache = { tid: 0, rader: [] };
+
+async function recensionsrader(uppsättningar) {
+  if (Date.now() - recensionscache.tid < 30 * 60_000) return recensionscache.rader;
+
+  const rader = [];
   for (const [publicist, adress] of FLÖDEN) {
     try {
       const svar = await fetch(adress);
@@ -87,19 +114,14 @@ async function news(res) {
         const träff = matchReview(post, uppsättningar);
         if (!träff) continue;
         const p = uppsättningar.find((u) => u.production_key === träff.production_key);
-        recensioner.push({
-          url: post.url, title: post.title, description: post.description,
-          published: post.published, publisher: publicistNamn(publicist),
-          confidence: träff.confidence,
-          production: p && { production_key: p.production_key, title: p.title, venue: p.venue, url: p.url },
-        });
+        rader.push(reviewRow({ ...post, publisher: publicist }, träff, p));
       }
     } catch {
-      // En tidning som inte svarar ska inte dölja nyheterna.
+      // En tidning som inte svarar ska inte dölja resten.
     }
   }
-
-  json(res, { generated_at: new Date().toISOString(), days: 14, productions: nya, reviews: recensioner });
+  recensionscache = { tid: Date.now(), rader };
+  return rader;
 }
 
 /** Uppsättningarna. Motsvarar vyn upcoming_productions. */

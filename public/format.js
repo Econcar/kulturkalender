@@ -273,3 +273,62 @@ export function filtreraNytt({ productions = [], reviews = [] } = {}, { venue = 
     reviews: filtrerar ? reviews.filter((r) => passar(r.production)) : reviews,
   };
 }
+
+/**
+ * Speltiden för en rad som täcker mer än en kväll: "Spelas 13 september –
+ * 8 november".
+ *
+ * Kulturhuset publicerar en pjäs som ett enda Event med startDate på första
+ * och endDate på sista föreställningen. Utan den här raden ser en uppsättning
+ * som spelas i två månader ut som en enda kväll. En konsert som slutar efter
+ * midnatt är däremot en kväll, därav kravet på ett helt dygn.
+ *
+ * Utställningar pågår, de spelas inte.
+ */
+export function speltid(event, now = new Date()) {
+  const start = new Date(event?.starts_at ?? '');
+  const slut = new Date(event?.ends_at ?? '');
+  if (Number.isNaN(start.getTime()) || Number.isNaN(slut.getTime())) return '';
+  if (slut.getTime() - start.getTime() < 86_400_000) return '';
+  const verb = event.category === 'utställning' ? 'Pågår' : 'Spelas';
+  return `${verb} ${runLabel(event.starts_at, event.ends_at, 1, now)}`;
+}
+
+/**
+ * Uppsättningens nyckel för en evenemangsrad. Samma regel som vyn
+ * upcoming_productions och productionKey i lib/upcoming.mjs - sidan kan inte
+ * importera lib/, så den står här en gång till. tests/format.test.mjs kräver
+ * att de två ger samma svar.
+ */
+export function productionKey(r) {
+  if (r?.production_key) return r.production_key;
+  if (!r?.source) return null;
+  if (r.source === 'konserthuset') {
+    const slug = String(r.external_id ?? '').split('/')[0];
+    return slug ? `${r.source}|${slug}` : null;
+  }
+  const bas = r.url ?? r.title;
+  return bas ? `${r.source}|${bas}` : null;
+}
+
+/** Recensionerna grupperade per uppsättning, nyast först i varje grupp. */
+export function recensionerPerUppsättning(reviews = []) {
+  const per = new Map();
+  for (const r of reviews) {
+    const nyckel = r?.production?.production_key;
+    if (!nyckel || !r.url) continue;
+    if (!per.has(nyckel)) per.set(nyckel, []);
+    per.get(nyckel).push(r);
+  }
+  for (const lista of per.values()) {
+    lista.sort((a, b) => String(b.published ?? '').localeCompare(String(a.published ?? '')));
+  }
+  return per;
+}
+
+/** "Aftonbladet 17 september" - tidningen och dagen, för länken på kortet. */
+export function recensionsetikett(r) {
+  const d = new Date(r?.published ?? '');
+  const dag = Number.isNaN(d.getTime()) ? '' : DAGMÅNAD.format(d);
+  return [r?.publisher, dag].filter(Boolean).join(' ');
+}

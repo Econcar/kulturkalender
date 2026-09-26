@@ -4,8 +4,8 @@
 // Därför inget session.js, ingen Supabase-klient i webbläsaren, och inget
 // tillstånd att hålla reda på utöver de filter som står i adressfältet.
 
-import { fetchEvents, fetchNews, fetchProductions, fetchVenues } from '/api.js';
-import { dateRange, dayHeading, daysSince, fetched, filtreraNytt, groupByDay, price, runLabel, time, today, utdrag, venueLabel } from '/format.js';
+import { fetchEvents, fetchNews, fetchProductions, fetchReviews, fetchVenues } from '/api.js';
+import { dateRange, dayHeading, daysSince, fetched, filtreraNytt, groupByDay, price, productionKey, recensionerPerUppsättning, recensionsetikett, runLabel, speltid, time, today, utdrag, venueLabel } from '/format.js';
 import { initDrift } from '/drift.js';
 import { VERSION } from '/version.js';
 
@@ -58,6 +58,7 @@ const VYER = [
   ['', 'Dag för dag'],
   ['repertoar', 'Repertoar'],
   ['nytt', 'Nytt'],
+  ['recensioner', 'Recensioner'],
 ];
 
 const SIDSTORLEK = 60;
@@ -85,6 +86,16 @@ const el = {
 const state = läsUrl();
 let laddade = [];
 let scener = [];
+
+// Recensionerna hämtas en gång och slås upp per kort. Listan är liten, och
+// den väntas in före första ritningen i stället för att korten ritas om när
+// den kommer - ett kort som hoppar till under läsning är sämre än 100 ms.
+let allaRecensioner = [];
+let recensionerPer = new Map();
+const recensionerKlara = fetchReviews().then((lista) => {
+  allaRecensioner = lista;
+  recensionerPer = recensionerPerUppsättning(lista);
+});
 
 init();
 
@@ -239,6 +250,18 @@ async function hämta({ ersätt, tyst = false } = {}) {
     // hade svarat på en fråga ingen ställde.
     const { from, to } = state.view === 'repertoar' ? { from: '', to: '' } : dateRange(state.period);
 
+    if (state.view === 'recensioner') {
+      await recensionerKlara;
+      laddade = ritaRecensioner(allaRecensioner);
+      el.more.hidden = true;
+      sätt(laddade.length
+        ? `${laddade.length} ${laddade.length === 1 ? 'recension' : 'recensioner'}`
+        : state.category || state.venue
+          ? 'Ingen recension matchar filtret.'
+          : 'Inga recensioner ännu.', laddade.length ? 'ok' : 'warn');
+      return;
+    }
+
     if (state.view === 'nytt') {
       const nyheter = await fetchNews();
       laddade = ritaNytt(nyheter);
@@ -257,6 +280,7 @@ async function hämta({ ersätt, tyst = false } = {}) {
 
     const nya = state.view === 'repertoar' ? data.productions : data.events;
     laddade = ersätt ? nya : [...laddade, ...nya];
+    await recensionerKlara;
 
     if (state.view === 'repertoar') ritaRepertoar(laddade);
     else rita(laddade);
@@ -345,6 +369,17 @@ function kort(event) {
   fakta.textContent = rad;
   kropp.append(fakta);
 
+  const spann = speltid(event);
+  if (spann) {
+    const period = document.createElement('p');
+    period.className = 'facts';
+    period.textContent = spann;
+    kropp.append(period);
+  }
+
+  const recenserad = recensionsrad(productionKey(event));
+  if (recenserad) kropp.append(recenserad);
+
   if (event.description) {
     const text = document.createElement('p');
     text.className = 'muted excerpt';
@@ -396,10 +431,10 @@ function ritaVyer() {
   el.views.replaceChildren(frag);
 
   // Filter som inte betyder något i vyn göms hellre än visas döda. Datum hör
-  // inte till repertoaren, och nyhetsflödet tar scen och kategori men inte
-  // datum eller sökning - "nytt" är redan ett tidsfilter.
+  // inte till repertoaren, och nyhets- och recensionsvyn tar scen och
+  // kategori men inte datum eller sökning - listorna är korta nog att läsa.
   el.dates.hidden = state.view !== '';
-  el.search.hidden = state.view === 'nytt';
+  el.search.hidden = state.view === 'nytt' || state.view === 'recensioner';
 }
 
 /**
@@ -437,6 +472,34 @@ function rubrik(text) {
   return li;
 }
 
+/**
+ * Alla recensioner, grupperade per scen.
+ *
+ * Svarar på "vilka hus har recenserats, och vad?" - därför rubrik per hus och
+ * nyast först under varje. Husen står i bokstavsordning; en ordning efter
+ * antal hade flyttat runt dem varje gång en recension tillkom.
+ */
+function ritaRecensioner(reviews) {
+  const { reviews: urval } = filtreraNytt({ reviews }, state);
+
+  const perHus = new Map();
+  for (const r of urval) {
+    const hus = r.production?.venue ?? 'Övriga';
+    if (!perHus.has(hus)) perHus.set(hus, []);
+    perHus.get(hus).push(r);
+  }
+
+  const frag = document.createDocumentFragment();
+  for (const hus of [...perHus.keys()].sort((a, b) => a.localeCompare(b, 'sv'))) {
+    const lista = perHus.get(hus);
+    frag.append(rubrik(`${hus} · ${lista.length} ${lista.length === 1 ? 'recension' : 'recensioner'}`));
+    for (const r of lista) frag.append(recensionskort(r));
+  }
+
+  el.results.replaceChildren(frag);
+  return urval;
+}
+
 /** En recension: vem som skrev, om vad, och en länk dit. */
 function recensionskort(r) {
   const li = document.createElement('li');
@@ -454,13 +517,26 @@ function recensionskort(r) {
   titel.append(länk);
   kropp.append(titel);
 
+  // Uppsättningen som länk när scenen fortfarande har en sida för den, så att
+  // steget från "vad tyckte kritikern?" till "när går den?" är ett klick.
   const fakta = document.createElement('p');
   fakta.className = 'facts';
-  fakta.textContent = [
-    r.publisher,
-    r.production ? `om ${r.production.title} på ${r.production.venue}` : null,
-    r.published ? dayHeading(new Date(r.published).toISOString()) : null,
-  ].filter(Boolean).join(' · ');
+  const delar = [r.publisher, r.production?.title ? 'om' : null];
+  fakta.append(delar.filter(Boolean).join(' · ') + (r.production?.title ? ' ' : ''));
+  if (r.production?.title) {
+    if (r.production.url) {
+      const pjäs = document.createElement('a');
+      pjäs.href = r.production.url;
+      pjäs.rel = 'noopener';
+      pjäs.target = '_blank';
+      pjäs.textContent = r.production.title;
+      fakta.append(pjäs);
+    } else {
+      fakta.append(r.production.title);
+    }
+    if (r.production.venue) fakta.append(` på ${r.production.venue}`);
+  }
+  if (r.published) fakta.append(` · ${dayHeading(new Date(r.published).toISOString())}`);
   kropp.append(fakta);
 
   if (r.description) {
@@ -546,6 +622,9 @@ function uppsättning(p) {
   ].filter(Boolean).join(' · ');
   kropp.append(fakta);
 
+  const recenserad = recensionsrad(p.production_key);
+  if (recenserad) kropp.append(recenserad);
+
   if (p.description) {
     const text = document.createElement('p');
     text.className = 'muted excerpt';
@@ -555,6 +634,43 @@ function uppsättning(p) {
 
   li.append(kropp);
   return li;
+}
+
+/**
+ * "Recenserad i Aftonbladet 17 september: ÅSA LINDERBORG ser en obegripligt
+ * svag Parzival på Dramaten" - en rad per recension.
+ *
+ * Ingressen och inte rubriken. Kulturrubriker säger sällan vad kritikern
+ * tyckte ("Kungen med jättepungen är den enda behållningen"), medan ingressen
+ * ofta gör det i klartext. Den är tidningens egen sammanfattning, inte
+ * kritikerns text - se avsnitt 7b.
+ */
+function recensionsrad(nyckel) {
+  const lista = nyckel ? recensionerPer.get(nyckel) : null;
+  if (!lista?.length) return null;
+
+  const block = document.createElement('div');
+  block.className = 'reviewed';
+  for (const r of lista) {
+    const rad = document.createElement('p');
+    rad.className = 'facts';
+    rad.append('Recenserad i ');
+    const länk = document.createElement('a');
+    länk.href = r.url;
+    länk.rel = 'noopener';
+    länk.target = '_blank';
+    länk.textContent = recensionsetikett(r);
+    if (r.title) länk.title = r.title;
+    rad.append(länk);
+    if (r.description) {
+      const ingress = document.createElement('span');
+      ingress.className = 'ingress';
+      ingress.textContent = `: ${utdrag(r.description, 140)}`;
+      rad.append(ingress);
+    }
+    block.append(rad);
+  }
+  return block;
 }
 
 function ritaDatum() {
