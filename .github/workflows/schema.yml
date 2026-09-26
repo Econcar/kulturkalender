@@ -1,0 +1,59 @@
+name: Kör schemat
+
+# Kör db/schema.sql mot Supabase och därefter db/rls-test.sql, som ska sluta
+# med "RLS-testet gick igenom". Ersätter att klistra in filerna i SQL-editorn
+# för hand varje gång en scen eller kolumn tillkommer.
+#
+# Startas bara för hand. Schemat ändrar databasens form, och det ska vara ett
+# beslut - inte något som händer för att en commit råkade röra filen.
+#
+# SUPABASE_DB_URL är anslutningsadressen från Supabase → Connect → Session
+# pooler, med lösenordet i. Den ger full åtkomst till databasen och finns bara
+# här, som hemlighet i GitHub.
+
+on:
+  workflow_dispatch:
+
+# Inte samtidigt som en skanning: vyerna släpps och skapas om, och en skanning
+# som läser dem under tiden får fel.
+concurrency:
+  group: scan
+  cancel-in-progress: false
+
+jobs:
+  schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      # psql finns redan på GitHubs Ubuntu-maskiner.
+      #
+      # --single-transaction: faller en sats i mitten rullas allt tillbaka, i
+      # stället för att lämna databasen med vyerna släppta men inte skapade.
+      # ON_ERROR_STOP gör att psql avslutar med felkod i stället för att
+      # fortsätta förbi felet.
+      - name: Kör db/schema.sql
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "SUPABASE_DB_URL saknas bland Actions-hemligheterna"; exit 1
+          fi
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -q -f db/schema.sql
+
+      # Testet har sin egen begin/rollback och körs därför utan
+      # --single-transaction. Det skriver sin slutrad bara om inget fallerat,
+      # och steget kräver att raden kommer.
+      - name: Kör db/rls-test.sql
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          utdata=$(psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -At -f db/rls-test.sql 2>&1)
+          echo "$utdata"
+          echo "$utdata" | grep -q "RLS-testet gick igenom"
+
+      - name: Husen i databasen
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: psql "$SUPABASE_DB_URL" -At -c "select slug || ' – ' || name from public.venues order by slug;"

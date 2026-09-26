@@ -110,6 +110,7 @@ Skannern (GitHub → Settings → Secrets and variables → **Actions**):
 | --- | --- | --- |
 | `SUPABASE_URL` | Secret | Samma rot som ovan |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Secret** | Går förbi RLS. Får aldrig hamna i `public/` – pre-deploy-spärren letar efter den |
+| `SUPABASE_DB_URL` | **Secret** | Anslutningsadressen med lösenord. Bara för jobbet som kör schemat - full åtkomst till databasen |
 
 ## Uppsättning
 
@@ -124,6 +125,12 @@ Skannern (GitHub → Settings → Secrets and variables → **Actions**):
 
    Kontrollera sedan att husen finns: `select slug, name from public.venues
    order by slug;` ska ge tolv rader.
+
+   **Därefter behövs SQL-editorn inte.** Jobbet
+   [schema.yml](.github/workflows/schema.yml) kör båda filerna och kräver att
+   testet går igenom: `gh workflow run schema.yml`, eller *Run workflow* under
+   Actions. Det behöver hemligheten `SUPABASE_DB_URL` - anslutningsadressen från
+   Supabase → Connect → Session pooler, med lösenordet i.
 
    Återanvänds receptbokens Supabase-projekt körs
    [db/drop-receptbok.sql](db/drop-receptbok.sql) först – en gång, medvetet.
