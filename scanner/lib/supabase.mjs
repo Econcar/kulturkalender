@@ -36,8 +36,10 @@ export function createClient({ url, serviceKey, dryRun = false } = {}) {
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-    if (res.status === 204) return null;
-    return res.json();
+    // return=minimal ger 201 med tom kropp på POST, inte bara 204. Att tolka
+    // den som JSON kastade efter att raderna redan skrivits.
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
   }
 
   return {
