@@ -27,7 +27,7 @@ const HUS = 'Göta Lejon';
 // Culture" - den sista säger ingenting, och där får titeln avgöra.
 const EXTRA = [
   [/country|indie|alternative|latin|metal|hip.?hop|r&b|soul|blues|folk|electronic|reggae|world|orchestra|symphon|music of|drummers/i, 'konsert'],
-  [/musical|musikal/i, 'opera'],
+  [/musical|musikal/i, 'musikal'],
   [/comedy|komik|stand.?up|humor/i, 'humor'],
   [/family|familj|children|barn/i, 'barn'],
   [/theatre|theater|teater/i, 'teater'],

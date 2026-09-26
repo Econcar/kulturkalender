@@ -129,6 +129,7 @@ test('det smalare ordet vinner när flera passar', () => {
   // "Operakonsert" är opera, inte konsert. Ordningen i GENRE_CATEGORY avgör,
   // och den är medveten.
   assert.equal(category({ '@type': 'Event', genre: 'Operakonsert' }), 'opera');
+  assert.equal(category({ '@type': 'Event', genre: 'Musikal' }), 'musikal');
 
   // "Barnteater" blir barn, inte teater. Publik slår form: den som filtrerar
   // på barn blir illa betjänad av att missa barnteatern, medan den som

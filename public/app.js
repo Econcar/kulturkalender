@@ -17,6 +17,7 @@ const KATEGORIER = [
   ['konsert', 'Konsert'],
   ['teater', 'Teater'],
   ['opera', 'Opera'],
+  ['musikal', 'Musikal'],
   ['dans', 'Dans'],
   ['utställning', 'Utställning'],
   ['film', 'Film'],

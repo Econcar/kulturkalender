@@ -17,14 +17,17 @@ import { CATEGORIES, category } from '../lib/event.mjs';
 const rot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const läs = (fil) => readFileSync(join(rot, fil), 'utf8');
 
-test('API:ets vitlista täcker alla kategorier', () => {
-  const källa = läs('functions/api/events.js');
-  const vitlista = /const CATEGORIES = new Set\(\[([\s\S]*?)\]\)/.exec(källa);
-  assert.ok(vitlista, 'CATEGORIES hittades inte i functions/api/events.js');
+test('API:ernas vitlistor täcker alla kategorier', () => {
+  // Båda ändpunkterna, inte bara events.js: repertoarvyns vitlista glömdes
+  // en gång och gjorde att en ny kategori tyst gav hela repertoaren.
+  for (const fil of ['functions/api/events.js', 'functions/api/productions.js']) {
+    const källa = läs(fil);
+    const vitlista = /const CATEGORIES = new Set\(\[([\s\S]*?)\]\)/.exec(källa);
+    assert.ok(vitlista, `CATEGORIES hittades inte i ${fil}`);
 
-  const funna = [...vitlista[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
-
-  assert.deepEqual([...funna].sort(), [...CATEGORIES].sort());
+    const funna = [...vitlista[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    assert.deepEqual([...funna].sort(), [...CATEGORIES].sort(), fil);
+  }
 });
 
 test('varje kategori går att välja i gränssnittet', () => {

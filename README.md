@@ -172,6 +172,9 @@ får innehålla `/rest/v1/`.
       bort: deras datum finns bara hos Tickster, som stänger allt i robots.txt
 - [x] China Teatern, Oscarsteatern, Intiman, Göta Lejon, Teater Giljotin och
       Strindbergs Intima (2026-09-26). Maximteatern har ingen sajt att läsa
+- [x] Musikal som egen kategori, skild från opera
+- [x] Larm: en källa som fallerar eller ger noll gör nattkörningen röd, och
+      GitHub skickar mejl. Tabell per källa på körningens sida
 - [ ] Fas 5: dubbletter mellan källor – `groupDuplicates` finns, används inte
 - [ ] Utred Fotografiska, Moderna Museet, Stockholm Live och Debaser.
       Bara deras listsidor har testats, vilket inte säger något

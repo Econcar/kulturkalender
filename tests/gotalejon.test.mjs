@@ -41,7 +41,7 @@ test('raden får svensk titel, biljettlänk, egen sida och kategori ur genren', 
 test('Live Nations genrer och titlar blir våra kategorier', () => {
   assert.equal(kategori(['Country']), 'konsert');
   assert.equal(kategori(['Dance/Electronic']), 'konsert');
-  assert.equal(kategori(['Arts and Culture'], 'Djungelboken - The Musical'), 'opera');
+  assert.equal(kategori(['Arts and Culture'], 'Djungelboken - The Musical'), 'musikal');
   assert.equal(kategori(['Arts and Culture'], 'Georgian National Ballet'), 'dans');
   assert.equal(kategori(['Sport'], 'Arsenal Legends'), 'övrigt');
 });

@@ -7,6 +7,8 @@
 // en ändrar sitt sidformat varje kvartal. Skillnaden nu är att källorna är
 // ojämna redan från start – se scanner/sources/_template.mjs.
 
+import { appendFile } from 'node:fs/promises';
+
 import { selectSources } from './sources/index.mjs';
 import { dedupeBatch } from './lib/dedupe.mjs';
 import { createClient } from './lib/supabase.mjs';
@@ -51,14 +53,46 @@ export async function runScan({ sourceFilter = process.env.SCAN_SOURCES, client,
   }
   if (empty.length) log(`VARNING: källor utan träffar (formatet kan ha ändrats): ${empty.join(', ')}`);
 
-  // Exit-koden signalerar bara totalhaveri – enskilda trasiga källor är väntat
-  // och syns i loggen och i scan_runs.
-  if (failures === results.length) {
-    log('Alla källor misslyckades.');
+  await sammanfattning(results);
+
+  // Varje trasig eller tom källa fäller körningen, inte bara totalhaveri.
+  //
+  // Förr signalerade exit-koden bara att ALLA källor misslyckats, med
+  // motiveringen att enskilda trasiga källor syns i loggen. Men ingen läser
+  // loggen en natt då allt ser grönt ut. Med tolv adaptrar mot tolv sajter
+  // som när som helst kan lägga om sina sidor hade en scen kunnat tappa hela
+  // sitt program utan att något larmade. En röd körning ger ett mejl från
+  // GitHub; en grön ger ingenting.
+  //
+  // De andra källornas rader är redan skrivna när det här avgörs - en trasig
+  // källa stoppar aldrig de andra, den gör bara körningen röd.
+  const trasiga = results.filter((r) => r.status !== 'ok');
+  if (trasiga.length) {
+    log(trasiga.length === results.length
+      ? 'Alla källor misslyckades.'
+      : `${trasiga.length} av ${results.length} källor behöver tittas på: ${trasiga.map((r) => r.source).join(', ')}`);
     process.exitCode = 1;
   }
 
   return { sources: results, totalUpserted, failures };
+}
+
+/**
+ * En tabell på körningens sida i GitHub, så att det syns utan att läsa
+ * loggen vilken scen som fallerade och varför. GITHUB_STEP_SUMMARY finns bara
+ * i Actions; lokalt händer ingenting.
+ */
+async function sammanfattning(results) {
+  const fil = process.env.GITHUB_STEP_SUMMARY;
+  if (!fil) return;
+  const ikon = { ok: '✅', empty: '⚠️', error: '❌' };
+  const rader = results.map((r) => `| ${ikon[r.status] ?? r.status} | ${r.source} | ${r.rows_found} | ${r.rows_upserted} | ${String(r.error ?? (r.status === 'empty' ? 'inga träffar - formatet kan ha ändrats' : '')).replace(/\|/g, '/').slice(0, 200)} |`);
+  const text = ['| | Källa | Hittade | Skrivna | Fel |', '| --- | --- | ---: | ---: | --- |', ...rader, ''].join('\n');
+  try {
+    await appendFile(fil, text);
+  } catch {
+    // Sammanfattningen är en bekvämlighet och får aldrig fälla körningen.
+  }
 }
 
 async function runSource(source, db) {

@@ -4,7 +4,7 @@ import { clampInt, fail, json, options, supabaseRest } from './_shared.js';
 // aldrig rakt från klienten – strängarna blir en del av frågan, inte parametrar
 // till den.
 const CATEGORIES = new Set([
-  'konsert', 'teater', 'opera', 'dans', 'utställning', 'film',
+  'konsert', 'teater', 'opera', 'musikal', 'dans', 'utställning', 'film',
   'barn', 'föreläsning', 'litteratur', 'humor', 'cirkus', 'festival', 'övrigt',
 ]);
 

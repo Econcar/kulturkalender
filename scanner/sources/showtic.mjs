@@ -26,10 +26,10 @@ const SANITY = 'https://cdn.sanity.io/images/3553xkck/production';
 
 // Showtics genrer till våra kategorier. Den första genre som finns här avgör,
 // huvudgenrerna före de sekundära - "Konsert" med "Show" som sekundär är en
-// konsert. Musikal är opera här som i lib/event.mjs.
+// konsert.
 const GENRE = {
   konsert: 'konsert', julkonsert: 'konsert', 'konsert & klubb': 'konsert', gala: 'konsert',
-  musikal: 'opera', musikteater: 'opera',
+  musikal: 'musikal', musikteater: 'musikal',
   komedi: 'humor', 'stand up': 'humor',
   familjeteater: 'barn',
   teater: 'teater', fars: 'teater', buskis: 'teater', show: 'teater', julshow: 'teater',

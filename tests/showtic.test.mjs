@@ -64,7 +64,7 @@ test('dolda priser visas inte', () => {
 
 test('huvudgenren vinner över den sekundära', () => {
   assert.equal(kategori(['Konsert', 'Show']), 'konsert');
-  assert.equal(kategori(['Musikal']), 'opera');
+  assert.equal(kategori(['Musikal']), 'musikal');
   assert.equal(kategori(['Familjeteater']), 'barn');
   assert.equal(kategori(['Okänd genre']), 'övrigt');
 });

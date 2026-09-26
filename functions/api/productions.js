@@ -8,7 +8,7 @@ import { clampInt, fail, json, options, supabaseRest } from './_shared.js';
 // härifrån och aldrig rakt från klienten.
 
 const CATEGORIES = new Set([
-  'konsert', 'teater', 'opera', 'dans', 'utställning', 'film',
+  'konsert', 'teater', 'opera', 'musikal', 'dans', 'utställning', 'film',
   'barn', 'föreläsning', 'litteratur', 'humor', 'cirkus', 'festival', 'övrigt',
 ]);
 
