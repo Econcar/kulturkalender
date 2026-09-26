@@ -254,3 +254,22 @@ export function groupByDay(events) {
   }
   return dagar;
 }
+
+/**
+ * Nyhetsvyns urval efter scen och kategori.
+ *
+ * Görs i webbläsaren, eftersom /api/news inte tar parametrar (se
+ * functions/api/news.js). En recension följer uppsättningen den matchats mot;
+ * en recension utan uppsättning hör inte till någon scen eller kategori och
+ * faller bort så fort något filter är på.
+ */
+export function filtreraNytt({ productions = [], reviews = [] } = {}, { venue = '', category = '' } = {}) {
+  const passar = (p) => Boolean(p)
+    && (!venue || p.venue_slug === venue)
+    && (!category || p.category === category);
+  const filtrerar = Boolean(venue || category);
+  return {
+    productions: filtrerar ? productions.filter(passar) : productions,
+    reviews: filtrerar ? reviews.filter((r) => passar(r.production)) : reviews,
+  };
+}

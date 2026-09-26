@@ -5,7 +5,7 @@
 // tillstånd att hålla reda på utöver de filter som står i adressfältet.
 
 import { fetchEvents, fetchNews, fetchProductions, fetchVenues } from '/api.js';
-import { dateRange, dayHeading, daysSince, fetched, groupByDay, price, runLabel, time, today, utdrag, venueLabel } from '/format.js';
+import { dateRange, dayHeading, daysSince, fetched, filtreraNytt, groupByDay, price, runLabel, time, today, utdrag, venueLabel } from '/format.js';
 import { initDrift } from '/drift.js';
 import { VERSION } from '/version.js';
 
@@ -245,7 +245,9 @@ async function hämta({ ersätt, tyst = false } = {}) {
       el.more.hidden = true;
       sätt(laddade.length
         ? `${laddade.length} nyheter de senaste ${nyheter.days} dagarna`
-        : `Inget nytt de senaste ${nyheter.days} dagarna.`, laddade.length ? 'ok' : 'warn');
+        : state.category || state.venue
+          ? `Inget nytt som matchar filtret de senaste ${nyheter.days} dagarna.`
+          : `Inget nytt de senaste ${nyheter.days} dagarna.`, laddade.length ? 'ok' : 'warn');
       return;
     }
 
@@ -394,27 +396,23 @@ function ritaVyer() {
   el.views.replaceChildren(frag);
 
   // Filter som inte betyder något i vyn göms hellre än visas döda. Datum hör
-  // inte till repertoaren, och nyhetsflödet tar inga filter alls utöver scenen
-  // - att låta kategoriknapparna stå kvar utan verkan vore att ljuga med
-  // gränssnittet.
+  // inte till repertoaren, och nyhetsflödet tar scen och kategori men inte
+  // datum eller sökning - "nytt" är redan ett tidsfilter.
   el.dates.hidden = state.view !== '';
-  el.filters.hidden = state.view === 'nytt';
   el.search.hidden = state.view === 'nytt';
 }
 
 /**
  * Nyheterna: nya uppsättningar och nya recensioner.
  *
- * Scenfiltret gäller här också, men filtreras i webbläsaren - ändpunkten tar
- * inga parametrar med flit, så att flödena hämtas som mest två gånger i timmen
- * oavsett hur många som besöker sidan.
+ * Scen- och kategorifiltret gäller här också, men filtreras i webbläsaren -
+ * ändpunkten tar inga parametrar med flit, så att flödena hämtas som mest två
+ * gånger i timmen oavsett hur många som besöker sidan.
  *
  * Returnerar de ritade posterna, så att statusraden kan räkna dem.
  */
-function ritaNytt({ productions = [], reviews = [] }) {
-  const hus = state.venue;
-  const nya = hus ? productions.filter((p) => p.venue_slug === hus) : productions;
-  const rec = hus ? reviews.filter((r) => r.production?.venue_slug === hus) : reviews;
+function ritaNytt(nyheter) {
+  const { productions: nya, reviews: rec } = filtreraNytt(nyheter, state);
 
   const frag = document.createDocumentFragment();
 

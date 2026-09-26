@@ -15,6 +15,11 @@
 
 * { box-sizing: border-box; }
 
+/* hidden ska vinna över klassernas display. Utan den här raden låg
+   .chips { display: flex } över attributet, och filter som app.js gömde för
+   att de inte gör något i vyn stod kvar och såg klickbara ut. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   padding: 0 1rem 3rem;

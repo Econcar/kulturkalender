@@ -99,7 +99,16 @@ async function hämtaRecensioner(uppsättningar) {
       publisher: publicistNamn(post.publisher),
       confidence: träff.confidence,
       production: p
-        ? { production_key: p.production_key, title: p.title, venue: p.venue, url: p.url }
+        ? {
+          production_key: p.production_key,
+          title: p.title,
+          venue: p.venue,
+          // Filtren i nyhetsvyn läser de här två. Utan venue_slug kunde
+          // scenfiltret aldrig träffa en recension.
+          venue_slug: p.venue_slug,
+          category: p.category,
+          url: p.url,
+        }
         : null,
     });
   }

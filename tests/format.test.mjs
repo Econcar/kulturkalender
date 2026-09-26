@@ -173,3 +173,29 @@ test('saknad hämtningstid skrivs inte ut alls', () => {
   assert.equal(fetched(undefined), '');
   assert.equal(fetched('inte ett datum'), '');
 });
+
+test('nyhetsvyn filtreras på kategori och scen', async () => {
+  const { filtreraNytt } = await import('../public/format.js');
+  const hamlet = { title: 'Hamlet', venue_slug: 'dramaten', category: 'teater' };
+  const tosca = { title: 'Tosca', venue_slug: 'operan', category: 'opera' };
+  const nyheter = {
+    productions: [hamlet, tosca],
+    reviews: [
+      { title: 'Om Hamlet', production: hamlet },
+      { title: 'Om Tosca', production: tosca },
+      { title: 'Omatchad', production: null },
+    ],
+  };
+
+  const teater = filtreraNytt(nyheter, { category: 'teater' });
+  assert.deepEqual(teater.productions, [hamlet]);
+  assert.deepEqual(teater.reviews.map((r) => r.title), ['Om Hamlet']);
+
+  const operan = filtreraNytt(nyheter, { venue: 'operan' });
+  assert.deepEqual(operan.productions, [tosca]);
+
+  assert.equal(filtreraNytt(nyheter, { venue: 'operan', category: 'teater' }).productions.length, 0);
+
+  // Utan filter visas allt, också recensionen som inte hittade sin uppsättning.
+  assert.equal(filtreraNytt(nyheter, {}).reviews.length, 3);
+});
