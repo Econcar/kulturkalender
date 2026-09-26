@@ -123,7 +123,7 @@ Skannern (GitHub → Settings → Secrets and variables → **Actions**):
    Misslyckas något höjs ett fel, och då står det rött i stället.
 
    Kontrollera sedan att husen finns: `select slug, name from public.venues
-   order by slug;` ska ge sex rader.
+   order by slug;` ska ge tolv rader.
 
    Återanvänds receptbokens Supabase-projekt körs
    [db/drop-receptbok.sql](db/drop-receptbok.sql) först – en gång, medvetet.
@@ -163,6 +163,8 @@ får innehålla `/rest/v1/`.
       korten och i nyhetsvyn. Se avsnitt 7b i projektstart.md
 - [x] Södra Teatern och Folkoperan (2026-09-26). Playhouse och Orion valdes
       bort: deras datum finns bara hos Tickster, som stänger allt i robots.txt
+- [x] China Teatern, Oscarsteatern, Intiman, Göta Lejon, Teater Giljotin och
+      Strindbergs Intima (2026-09-26). Maximteatern har ingen sajt att läsa
 - [ ] Fas 5: dubbletter mellan källor – `groupDuplicates` finns, används inte
 - [ ] Utred Fotografiska, Moderna Museet, Stockholm Live och Debaser.
       Bara deras listsidor har testats, vilket inte säger något

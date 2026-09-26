@@ -34,6 +34,15 @@
 //
 // Undersökta och bortvalda 2026-09-26: Playhouse Teater och Orionteatern har
 // sina datum bara hos Tickster, vars robots.txt stänger allt.
+//
+// Andra omgången teatrar, samma dag:
+//   showtic.mjs    – China Teatern, Oscarsteatern och Intiman. Biljettsajtens
+//                    öppna JSON-API, samma som dess knapp "Visa fler" anropar.
+//   'gotalejon'    – Live Nation. Evenemangen som JSON i React Server
+//                    Components-strömmen, en artistsida i taget.
+//   nortic.mjs     – Teater Giljotin och Strindbergs Intima. ld+json per
+//                    föreställning hos Nortic, länkarna från teatrarnas sajter.
+// Maximteatern har ingen sajt att läsa: .se är parkerad, .com en casinosida.
 
 import kulturhuset from './kulturhuset.mjs';
 import dramaten from './dramaten.mjs';
@@ -41,8 +50,14 @@ import konserthuset from './konserthuset.mjs';
 import operan from './operan.mjs';
 import sodrateatern from './sodrateatern.mjs';
 import folkoperan from './folkoperan.mjs';
+import showtic from './showtic.mjs';
+import gotalejon from './gotalejon.mjs';
+import nortic from './nortic.mjs';
 
-const sources = [kulturhuset, dramaten, konserthuset, operan, sodrateatern, folkoperan];
+const sources = [
+  kulturhuset, dramaten, konserthuset, operan, sodrateatern, folkoperan,
+  ...showtic, gotalejon, ...nortic,
+];
 
 export default sources;
 

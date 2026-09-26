@@ -67,8 +67,19 @@ på startsidan. Resultatet styr hela bygget, så det står här i sin helhet.
 | Orionteatern | Premiärdatum på egen sida, föreställningarna bara hos Tickster. | Vilande |
 
 Tickster, som både Playhouse och Orion säljer genom, har `Disallow: /` för
-alla. Det respekteras. Nästa teatrar att undersöka: Oscarsteatern, China
-Teatern, Göta Lejon, Maximteatern, Teater Giljotin, Strindbergs Intima Teater.
+alla. Det respekteras.
+
+**Andra omgången, samma dag:**
+
+| Scen | Vad som bär | Utfall |
+| --- | --- | --- |
+| China Teatern, Oscarsteatern, Intiman | Biljettsajten Showtics öppna JSON-API (`/api/events/venue`, max 100 per anrop) och `/api/shows` för genre och ingress. Tiden i UTC. | Byggda, en adapter för alla tre |
+| Göta Lejon | Live Nation, Next.js app-router. Evenemangen som JSON i RSC-strömmen (`self.__next_f.push`), en artistsida i taget. `eventDateUtc` är scentiden. | Byggd |
+| Teater Giljotin, Strindbergs Intima | `ld+json` per föreställning hos Nortic. Länkarna från teatrarnas egna sajter. `endDate` är bara ett datum och kastas när det ligger före starten. | Byggda |
+| Maximteatern | Ingen sajt: `.se` parkerad, `.com` en casinosida. | Bortvald |
+
+Giljotins egen kalender läser Squarespaces `?format=json`, som deras robots.txt
+stänger - därav omvägen via Nortic.
 
 **De fem sista i första tabellen är inte ett besked.** En listsida bär aldrig `Event`, inte hos
 Kulturhuset heller. De måste testas på en enskild evenemangssida innan någon
