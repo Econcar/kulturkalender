@@ -360,8 +360,14 @@ function kort(event) {
   titel.append(länk);
   kropp.append(titel);
 
+  // Klockslaget säger ingenting för något som pågår i veckor: en utställning
+  // har öppettider, inte en starttid, och för det som redan har börjat är
+  // tiden en dag som passerat. Speltiden på raden under säger det som behövs.
+  const spann = speltid(event);
+  const utanTid = spann && (event.category === 'utställning' || new Date(event.starts_at) < new Date());
+
   const rad = [
-    time(event.starts_at),
+    utanTid ? null : time(event.starts_at),
     venueLabel(event.venue, event.stage),
     price(event.price_min, event.price_max, event.currency),
   ].filter(Boolean).join(' · ');
@@ -370,7 +376,6 @@ function kort(event) {
   fakta.textContent = rad;
   kropp.append(fakta);
 
-  const spann = speltid(event);
   if (spann) {
     const period = document.createElement('p');
     period.className = 'facts';

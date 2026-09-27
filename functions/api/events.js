@@ -31,9 +31,18 @@ export async function onRequestGet({ request, env }) {
   const venue = (params.get('venue') || '').trim().toLowerCase();
   if (/^[a-z0-9-]{1,60}$/.test(venue)) query.append('venue_slug', `eq.${venue}`);
 
+  // Villkor som är or-uttryck samlas här och skickas som ett and. Två
+  // or-parametrar i samma PostgREST-fråga är inte väldefinierat.
+  const villkor = [];
+
   // Datumen släpps bara igenom på exakt formen ÅÅÅÅ-MM-DD.
+  //
+  // Perioden gäller det som PÅGÅR under den, inte bara det som börjar: en
+  // utställning som öppnade i april och pågår i helgen hör till "i helgen".
   const from = (params.get('from') || '').trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(from)) query.append('starts_at', `gte.${from}T00:00:00Z`);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(from)) {
+    villkor.push(`or(starts_at.gte.${from}T00:00:00Z,ends_at.gte.${from}T00:00:00Z)`);
+  }
 
   const to = (params.get('to') || '').trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(to)) query.append('starts_at', `lte.${to}T23:59:59Z`);
@@ -42,8 +51,10 @@ export async function onRequestGet({ request, env }) {
   // som söker "Lejonkulan" letar efter samma sorts sak.
   const term = searchTerm(params.get('q'));
   if (term) {
-    query.append('or', `(title.ilike.*${term}*,description.ilike.*${term}*,venue.ilike.*${term}*,stage.ilike.*${term}*)`);
+    villkor.push(`or(title.ilike.*${term}*,description.ilike.*${term}*,venue.ilike.*${term}*,stage.ilike.*${term}*)`);
   }
+
+  if (villkor.length) query.append('and', `(${villkor.join(',')})`);
 
   try {
     const events = await supabaseRest(env, `upcoming_events?${query}`);

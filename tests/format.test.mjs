@@ -156,7 +156,7 @@ test('äldre hämtningar säger hur gamla de är', () => {
   // Skannern går varje natt, så ett datum flera dagar tillbaka är ett fel och
   // inte en detalj. Besökaren ska slippa räkna dagar i huvudet för att se det.
   const nu = new Date('2026-09-15T08:00:00Z');
-  assert.equal(fetched('2026-09-08T02:00:00Z', nu), 'hämtad 8 september – för 7 dagar sedan');
+  assert.equal(fetched('2026-09-08T02:00:00Z', nu), 'hämtad 8 september 2026 – för 7 dagar sedan');
 });
 
 test('en framtida tidsstämpel påstår inte att den är gammal', () => {
@@ -206,12 +206,12 @@ test('en rad som täcker flera dagar får sin speltid', async () => {
 
   assert.equal(
     speltid({ starts_at: '2026-09-26T17:30:00Z', ends_at: '2026-11-05T20:00:00Z', category: 'teater' }, nu),
-    'Spelas 26 september – 5 november',
+    'Spelas 26 september – 5 november 2026',
   );
-  // Året skrivs ut när spannet går in i nästa år, som i runLabel.
+  // Över ett årsskifte får båda datumen sitt år.
   assert.equal(
     speltid({ starts_at: '2026-09-27T09:00:00Z', ends_at: '2027-01-10T16:00:00Z', category: 'utställning' }, nu),
-    'Pågår 27 september – 10 januari 2027',
+    'Pågår 27 september 2026 – 10 januari 2027',
   );
 });
 

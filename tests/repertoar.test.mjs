@@ -195,26 +195,27 @@ test('vyns fält är desamma i SQL som i JS', () => {
 test('speltiden skrivs som ett spann med antal', () => {
   assert.equal(
     runLabel('2026-09-25T17:00:00Z', '2026-12-05T18:00:00Z', 31, NU),
-    '25 september – 5 december, 31 föreställningar',
+    '25 september – 5 december 2026, 31 föreställningar',
   );
 });
 
-test('året skrivs ut bara när det skiljer sig från årets', () => {
-  // "23 mars" i september 2026 läses som i våras. "23 mars 2027" gör det inte.
+test('året står alltid med, och båda åren när spannet går över ett årsskifte', () => {
+  // Förr skrevs året bara när det skilde sig från i år. Nu står det alltid,
+  // men bara en gång när båda datumen ligger samma år.
   assert.equal(
     runLabel('2026-11-25T18:00:00Z', '2027-03-23T18:00:00Z', 60, NU),
-    '25 november – 23 mars 2027, 60 föreställningar',
+    '25 november 2026 – 23 mars 2027, 60 föreställningar',
   );
 });
 
 test('en ensam föreställning får inget antal efter sig', () => {
   // "1 föreställning" tillför ingenting - datumet säger redan allt.
-  assert.equal(runLabel('2026-10-16T17:00:00Z', null, 1, NU), '16 oktober');
-  assert.equal(runLabel('2026-10-16T17:00:00Z', '2026-10-16T17:00:00Z', 1, NU), '16 oktober');
+  assert.equal(runLabel('2026-10-16T17:00:00Z', null, 1, NU), '16 oktober 2026');
+  assert.equal(runLabel('2026-10-16T17:00:00Z', '2026-10-16T17:00:00Z', 1, NU), '16 oktober 2026');
 });
 
 test('flera föreställningar samma dag skrivs som en dag', () => {
-  assert.equal(runLabel('2026-10-16T08:00:00Z', '2026-10-16T18:00:00Z', 3, NU), '16 oktober, 3 föreställningar');
+  assert.equal(runLabel('2026-10-16T08:00:00Z', '2026-10-16T18:00:00Z', 3, NU), '16 oktober 2026, 3 föreställningar');
 });
 
 test('skräp ger tom sträng, inte Invalid Date', () => {

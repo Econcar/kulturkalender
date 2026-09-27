@@ -68,7 +68,7 @@ test('recensionerna grupperas per uppsättning, nyast först', () => {
 });
 
 test('etiketten på kortet är tidning och dag', () => {
-  assert.equal(recensionsetikett({ publisher: 'Aftonbladet', published: '2026-09-17T10:40:42Z' }), 'Aftonbladet 17 september');
+  assert.equal(recensionsetikett({ publisher: 'Aftonbladet', published: '2026-09-17T10:40:42Z' }), 'Aftonbladet 17 september 2026');
   assert.equal(recensionsetikett({ publisher: 'SvD', published: null }), 'SvD');
 });
 

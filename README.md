@@ -124,7 +124,7 @@ Skannern (GitHub → Settings → Secrets and variables → **Actions**):
    Misslyckas något höjs ett fel, och då står det rött i stället.
 
    Kontrollera sedan att husen finns: `select slug, name from public.venues
-   order by slug;` ska ge tolv rader.
+   order by slug;` ska ge sexton rader.
 
    **Därefter behövs SQL-editorn inte.** Jobbet
    [schema.yml](.github/workflows/schema.yml) kör båda filerna och kräver att
@@ -175,6 +175,9 @@ får innehålla `/rest/v1/`.
 - [x] Musikal som egen kategori, skild från opera
 - [x] Larm: en källa som fallerar eller ger noll gör nattkörningen röd, och
       GitHub skickar mejl. Tabell per källa på körningens sida
+- [x] Konst: Liljevalchs, Moderna Museet, Fotografiska och Nationalmuseum
+      (2026-09-27). Det som har börjat men inte slutat räknas nu som aktuellt
+      och visas under "Pågår nu"; datumfiltren tar med det som pågår
 - [ ] Fas 5: dubbletter mellan källor – `groupDuplicates` finns, används inte
 - [ ] Utred Fotografiska, Moderna Museet, Stockholm Live och Debaser.
       Bara deras listsidor har testats, vilket inte säger något

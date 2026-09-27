@@ -7,8 +7,11 @@
 // i Stockholm, inte när den börjar enligt hens egen klocka.
 const ZON = 'Europe/Stockholm';
 
+// Året står alltid med. Förr skrevs det bara när datumet låg ett annat år än
+// i dag, men "lördag 3 oktober" lämnade läsaren att räkna ut vilket år - och
+// med utställningar som pågår till 2028 blev det ofta fel gissat.
 const DAG = new Intl.DateTimeFormat('sv-SE', {
-  timeZone: ZON, weekday: 'long', day: 'numeric', month: 'long',
+  timeZone: ZON, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
 });
 const KLOCKAN = new Intl.DateTimeFormat('sv-SE', {
   timeZone: ZON, hour: '2-digit', minute: '2-digit',
@@ -33,7 +36,7 @@ export function dayKey(iso) {
   return DATUMNYCKEL.format(d).replace(/-/g, '-');
 }
 
-/** "lördag 17 oktober", med "i dag" och "i morgon" när det stämmer. */
+/** "lördag 17 oktober 2026", med "i dag" och "i morgon" när det stämmer. */
 export function dayHeading(iso, now = new Date()) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -84,7 +87,7 @@ export function fetched(iso, now = new Date()) {
   const dagar = daysSince(iso, now);
   if (dagar === null || dagar <= 0) return `hämtad i dag ${time(iso)}`;
   if (dagar === 1) return `hämtad i går ${time(iso)}`;
-  return `hämtad ${DAGMÅNAD.format(d)} – för ${dagar} dagar sedan`;
+  return `hämtad ${MEDÅR.format(d)} – för ${dagar} dagar sedan`;
 }
 
 /**
@@ -139,12 +142,11 @@ function plusDagar(nyckel, n) {
 }
 
 /**
- * Speltiden för en uppsättning: "25 november - 23 mars 2027, 60 föreställningar".
+ * Speltiden för en uppsättning: "25 november 2026 – 23 mars 2027, 60
+ * föreställningar".
  *
- * Året skrivs ut bara när det skiljer sig från det vi är i. "16 september"
- * räcker i september 2026, medan "23 mars 2027" behöver sitt år för att inte
- * läsas som i våras. Det är samma regel en människa följer när hon berättar
- * vad som spelas.
+ * Året står alltid med. Ligger båda datumen samma år skrivs det en gång, i
+ * slutet: "25 april – 29 november 2026".
  *
  * En ensam föreställning får inget antal efter sig. "1 föreställning" är
  * information som inte tillför något - datumet säger redan allt.
@@ -158,12 +160,10 @@ export function runLabel(firstIso, lastIso, performances = 1, now = new Date()) 
   if (Number.isNaN(första.getTime())) return '';
 
   const sista = new Date(lastIso ?? firstIso);
-  const nuÅr = år(now);
-  const datum = (d) => (år(d) === nuÅr ? DAGMÅNAD.format(d) : MEDÅR.format(d));
 
   const spann = Number.isNaN(sista.getTime()) || dayKey(firstIso) === dayKey(sista.toISOString())
-    ? datum(första)
-    : `${datum(första)} – ${datum(sista)}`;
+    ? MEDÅR.format(första)
+    : `${år(första) === år(sista) ? DAGMÅNAD.format(första) : MEDÅR.format(första)} – ${MEDÅR.format(sista)}`;
 
   return performances > 1 ? `${spann}, ${performances} föreställningar` : spann;
 }
@@ -239,15 +239,23 @@ export function utdrag(text, max = 180) {
  * ordning den fick och sorterar inte om. Sorterar man om här kan sidan visa en
  * annan ordning än API:et lovade, och skillnaden syns bara ibland.
  */
-export function groupByDay(events) {
+export function groupByDay(events, now = new Date()) {
   const dagar = [];
   let aktuell = null;
+  const idag = dayKey(now.toISOString());
 
   for (const event of events ?? []) {
-    const nyckel = dayKey(event?.starts_at);
+    let nyckel = dayKey(event?.starts_at);
     if (!nyckel) continue;
+
+    // Det som började före i dag och inte har slutat - en utställning som
+    // öppnade i april - hör inte hemma under en rubrik i april. Det samlas
+    // under "Pågår nu", som hamnar först eftersom listan är sorterad på start.
+    const pågår = nyckel < idag && new Date(event.ends_at ?? '').getTime() >= now.getTime();
+    if (pågår) nyckel = 'pågår';
+
     if (!aktuell || aktuell.key !== nyckel) {
-      aktuell = { key: nyckel, heading: dayHeading(event.starts_at), events: [] };
+      aktuell = { key: nyckel, heading: pågår ? 'Pågår nu' : dayHeading(event.starts_at), events: [] };
       dagar.push(aktuell);
     }
     aktuell.events.push(event);
@@ -326,9 +334,9 @@ export function recensionerPerUppsättning(reviews = []) {
   return per;
 }
 
-/** "Aftonbladet 17 september" - tidningen och dagen, för länken på kortet. */
+/** "Aftonbladet 17 september 2026" - tidningen och dagen, för länken på kortet. */
 export function recensionsetikett(r) {
   const d = new Date(r?.published ?? '');
-  const dag = Number.isNaN(d.getTime()) ? '' : DAGMÅNAD.format(d);
+  const dag = Number.isNaN(d.getTime()) ? '' : MEDÅR.format(d);
   return [r?.publisher, dag].filter(Boolean).join(' ');
 }

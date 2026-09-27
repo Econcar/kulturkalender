@@ -231,7 +231,15 @@ insert into public.venues (slug, name, url, address, lat, lng) values
   ('giljotin',    'Teater Giljotin', 'https://www.teatergiljotin.se',
    'Torsgatan 41, 113 62 Stockholm', 59.344000, 18.038000),
   ('strindbergs', 'Strindbergs Intima Teater', 'https://www.strindbergsintimateater.se',
-   'Barnhusgatan 20, 111 23 Stockholm', 59.336000, 18.056000)
+   'Barnhusgatan 20, 111 23 Stockholm', 59.336000, 18.056000),
+  ('liljevalchs', 'Liljevalchs konsthall', 'https://liljevalchs.se',
+   'Djurgårdsvägen 60, 115 21 Stockholm', 59.326100, 18.099500),
+  ('modernamuseet', 'Moderna Museet', 'https://www.modernamuseet.se',
+   'Exercisplan 4, 111 49 Stockholm', 59.326000, 18.084300),
+  ('fotografiska', 'Fotografiska', 'https://stockholm.fotografiska.com',
+   'Stadsgårdshamnen 22, 116 45 Stockholm', 59.317700, 18.085600),
+  ('nationalmuseum', 'Nationalmuseum', 'https://www.nationalmuseum.se',
+   'Södra Blasieholmshamnen 2, 111 48 Stockholm', 59.329000, 18.078100)
 on conflict (slug) do update
   set name = excluded.name,
       url = excluded.url,
@@ -302,7 +310,14 @@ select
 from public.events e
 left join public.venues hus on hus.slug = e.source
 left join public.venues rum on rum.id = e.venue_id
-where e.starts_at >= now() - interval '3 hours'  -- pågående räknas som kommande
+where (
+    e.starts_at >= now() - interval '3 hours'  -- pågående räknas som kommande
+    -- Det som har börjat men inte slutat: en utställning som öppnade i april
+    -- och pågår till november. Utan den här raden syntes den aldrig. Kravet på
+    -- last_seen_at gör att något källan slutat lista inte ligger kvar till
+    -- sitt slutdatum.
+    or (e.ends_at >= now() and e.last_seen_at >= now() - interval '7 days')
+  )
   and e.status <> 'cancelled';
 
 -- Husen med hur mycket som är på gång. Driver listan högst upp på förstasidan,
@@ -329,7 +344,8 @@ select
 from public.venues v
 left join public.events e
   on e.source = v.slug
- and e.starts_at >= now() - interval '3 hours'
+ and (e.starts_at >= now() - interval '3 hours'
+      or (e.ends_at >= now() and e.last_seen_at >= now() - interval '7 days'))
  and e.status <> 'cancelled'
 group by v.slug, v.name, v.url;
 

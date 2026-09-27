@@ -43,6 +43,13 @@
 //   nortic.mjs     – Teater Giljotin och Strindbergs Intima. ld+json per
 //                    föreställning hos Nortic, länkarna från teatrarnas sajter.
 // Maximteatern har ingen sajt att läsa: .se är parkerad, .com en casinosida.
+//
+// Konst, 2026-09-27. Utställningar pågår i månader, och det krävde att vyn
+// räknar det som har börjat men inte slutat - se upcoming_events.
+//   'liljevalchs'    – The Events Calendars öppna REST-API.
+//   'modernamuseet'  – WordPress-API:et, filtrerat på Stockholm och svenska.
+//   'fotografiska'   – ld+json ExhibitionEvent på varje utställningssida.
+//   'nationalmuseum' – datumspannet i sidhuvudets text. Utan /på-annan-plats/.
 
 import kulturhuset from './kulturhuset.mjs';
 import dramaten from './dramaten.mjs';
@@ -53,10 +60,15 @@ import folkoperan from './folkoperan.mjs';
 import showtic from './showtic.mjs';
 import gotalejon from './gotalejon.mjs';
 import nortic from './nortic.mjs';
+import liljevalchs from './liljevalchs.mjs';
+import modernamuseet from './modernamuseet.mjs';
+import fotografiska from './fotografiska.mjs';
+import nationalmuseum from './nationalmuseum.mjs';
 
 const sources = [
   kulturhuset, dramaten, konserthuset, operan, sodrateatern, folkoperan,
   ...showtic, gotalejon, ...nortic,
+  liljevalchs, modernamuseet, fotografiska, nationalmuseum,
 ];
 
 export default sources;

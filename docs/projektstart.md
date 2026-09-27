@@ -81,6 +81,22 @@ alla. Det respekteras.
 Giljotins egen kalender läser Squarespaces `?format=json`, som deras robots.txt
 stänger - därav omvägen via Nortic.
 
+**Konst, 2026-09-27:**
+
+| Museum | Vad som bär | Utfall |
+| --- | --- | --- |
+| Liljevalchs | The Events Calendars REST-API. Utställningar som heldagsspann, varje post på svenska och engelska. | Byggd |
+| Moderna Museet | WordPress-API:et, `acf.dates`. Hela arkivet sedan 1990-talet, Stockholm och Malmö, två språk och undersidor utan datum - filtreras på `lang`, `location` 12 och slutdatum. | Byggd |
+| Fotografiska | `ld+json` ExhibitionEvent. Datumen är midnatt UTC men menar en dag. | Byggd |
+| Nationalmuseum | Datumspannet i sidhuvudets text. `/på-annan-plats/` är utställningar på andra museer och hoppas över. | Byggd |
+
+Utställningarna krävde en ändring i vyn: `upcoming_events` tog bara med det
+som börjar framöver, så en utställning som öppnade i april syntes aldrig.
+Nu räknas också det som har börjat men inte slutat, om källan listat det den
+senaste veckan. Gränssnittet samlar det under "Pågår nu", och datumfiltren
+frågar efter det som pågår under perioden - vilket också löser Kulturhusets
+pjäser som publiceras som ett spann (avsnitt 10).
+
 **De fem sista i första tabellen är inte ett besked.** En listsida bär aldrig `Event`, inte hos
 Kulturhuset heller. De måste testas på en enskild evenemangssida innan någon
 säger något om dem.
