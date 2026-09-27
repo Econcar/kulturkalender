@@ -97,6 +97,17 @@ senaste veckan. Gränssnittet samlar det under "Pågår nu", och datumfiltren
 frågar efter det som pågår under perioden - vilket också löser Kulturhusets
 pjäser som publiceras som ett spann (avsnitt 10).
 
+**Musik, 2026-09-27:**
+
+| Scen | Vad som bär | Utfall |
+| --- | --- | --- |
+| Nalen | Storyblok-data i startsidans `__NEXT_DATA__`. Kortets tid är **dörrtiden**; konsertsidans `eventStart` är scentiden. | Byggd |
+| Avicii Arena, Annexet, Hovet, 3Arena, Strawberry Arena | Stockholm Lives lista över det kommande (arenornas egna API:er bär gamla evenemang). Samma tema som Södra Teatern. Utan Södra och sport. De tre små får vara tomma utan att larma. | Byggda |
+| Berwaldhallen | Kalenderns inbäddade data ger konsertadresserna; varje sida har EventSeries med subEvent per föreställning. | Byggd |
+| Fasching | WordPress-inlägg med datumet i adressen; tid, scen och pris i sidans text. Menyn och cookierutan fick först alla konserter att bli inställda barnkonserter. | Byggd |
+| Debaser | Webflow. Startsidans länkar och evenemangssidornas faktaruta. Ofta bara dörrtid. Startsidan kan vara ett urval. | Byggd |
+| Cirkus | Vercels säkerhetskontroll mot robotar. | Bortvald |
+
 **De fem sista i första tabellen är inte ett besked.** En listsida bär aldrig `Event`, inte hos
 Kulturhuset heller. De måste testas på en enskild evenemangssida innan någon
 säger något om dem.

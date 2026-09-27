@@ -50,6 +50,18 @@
 //   'modernamuseet'  – WordPress-API:et, filtrerat på Stockholm och svenska.
 //   'fotografiska'   – ld+json ExhibitionEvent på varje utställningssida.
 //   'nationalmuseum' – datumspannet i sidhuvudets text. Utan /på-annan-plats/.
+//
+// Musik, 2026-09-27.
+//   'nalen'          – Storyblok-data på startsidan; scentiden från konsertsidan,
+//                      eftersom kortets tid är dörrtiden.
+//   stockholmlive.mjs – Avicii Arena, Annexet, Hovet, 3Arena, Strawberry Arena.
+//                      Stockholm Lives lista över det kommande, sidorna tolkade
+//                      med sodrateatern.mjs. Utan Södra Teatern och sport.
+//   'berwaldhallen'  – kalenderns inbäddade data; EventSeries per konsert.
+//   'fasching'       – WordPress-inlägg med datumet i adressen, tiden i text.
+//   'debaser'        – startsidans länkar och evenemangssidornas faktaruta.
+// Cirkus visar en säkerhetskontroll för robotar (Vercel) och läses inte.
+//   'dansenshus'     – WordPress-posttypen dh_event, en rad per show_datetime.
 
 import kulturhuset from './kulturhuset.mjs';
 import dramaten from './dramaten.mjs';
@@ -64,11 +76,18 @@ import liljevalchs from './liljevalchs.mjs';
 import modernamuseet from './modernamuseet.mjs';
 import fotografiska from './fotografiska.mjs';
 import nationalmuseum from './nationalmuseum.mjs';
+import nalen from './nalen.mjs';
+import stockholmlive from './stockholmlive.mjs';
+import berwaldhallen from './berwaldhallen.mjs';
+import fasching from './fasching.mjs';
+import debaser from './debaser.mjs';
+import dansenshus from './dansenshus.mjs';
 
 const sources = [
   kulturhuset, dramaten, konserthuset, operan, sodrateatern, folkoperan,
   ...showtic, gotalejon, ...nortic,
   liljevalchs, modernamuseet, fotografiska, nationalmuseum,
+  nalen, ...stockholmlive, berwaldhallen, fasching, debaser, dansenshus,
 ];
 
 export default sources;

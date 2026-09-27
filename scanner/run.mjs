@@ -110,7 +110,10 @@ async function runSource(source, db) {
     if (dropped > 0) log(`  ${dropped} rader föll bort (dubbletter eller saknat external_id)`);
 
     if (!rows.length) {
-      result.status = 'empty';
+      // En arena med ett par konserter om året är tom de flesta veckor, och
+      // det är inget formatbyte. Källor som vet det om sig själva säger
+      // kanVaraTom och larmar inte på noll.
+      result.status = source.kanVaraTom ? 'ok' : 'empty';
     } else {
       result.rows_upserted = await db.upsertEvents(rows);
     }
