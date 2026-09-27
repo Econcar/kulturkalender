@@ -16,7 +16,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { applyFilters, upcomingEvents, upcomingProductions, venueSummary } from '../lib/upcoming.mjs';
+import { applyFilters, nyheter, upcomingEvents, upcomingProductions, venueSummary } from '../lib/upcoming.mjs';
 import { FLÖDEN } from '../lib/feeds.mjs';
 import { parseFeed } from '../lib/rss.mjs';
 import { matchReview, parseReviewUrl, reviewForPage, reviewRow } from '../lib/review-match.mjs';
@@ -67,13 +67,13 @@ const server = createServer(async (req, res) => {
  * Nyheterna. Motsvarar functions/api/news.js.
  */
 async function news(res) {
-  const uppsättningar = upcomingProductions(upcomingEvents(await läsData()));
+  const data = await läsData();
+  const kommande = upcomingEvents(data);
+  const uppsättningar = upcomingProductions(kommande);
   const gräns = Date.now() - 14 * 86_400_000;
 
-  const nya = uppsättningar
-    .filter((p) => p.announced_at && new Date(p.announced_at).getTime() >= gräns)
-    .sort((a, b) => String(b.announced_at).localeCompare(String(a.announced_at)))
-    .slice(0, 40);
+  const källstart = new Map(venueSummary(kommande, { alla: data }).map((h) => [h.slug, h.first_scan_at]));
+  const nya = nyheter(uppsättningar, { källstart, dygn: 14 });
 
   const recensioner = (await recensionsrader(uppsättningar))
     .filter((r) => r.published_at && new Date(r.published_at).getTime() >= gräns)

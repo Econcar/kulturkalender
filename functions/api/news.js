@@ -1,5 +1,6 @@
 import { fail, json, options, supabaseRest } from './_shared.js';
 import { reviewForPage } from '../../lib/review-match.mjs';
+import { nyheter } from '../../lib/upcoming.mjs';
 
 // Nyhetssidan: vad som är nytt hos scenerna, och vad som skrivits om det.
 //
@@ -26,18 +27,21 @@ export const onRequestOptions = options;
 
 export async function onRequestGet({ env }) {
   let uppsättningar;
+  let hus;
   try {
     // Alla, inte bara de nya: recensionerna slås upp i hela repertoaren.
-    uppsättningar = await supabaseRest(env, 'upcoming_productions?select=*&limit=1000');
+    [uppsättningar, hus] = await Promise.all([
+      supabaseRest(env, 'upcoming_productions?select=*&limit=1000'),
+      supabaseRest(env, 'venue_summary?select=slug,first_scan_at'),
+    ]);
   } catch (err) {
     return fail(err.message, 502);
   }
 
-  const gräns = Date.now() - NYTT_DYGN * 86_400_000;
-  const nya = uppsättningar
-    .filter((p) => p.announced_at && new Date(p.announced_at).getTime() >= gräns)
-    .sort((a, b) => String(b.announced_at).localeCompare(String(a.announced_at)))
-    .slice(0, 40);
+  // Vad som räknas som nytt - och varför allt en ny scen har inte gör det -
+  // står i lib/upcoming.mjs.
+  const källstart = new Map(hus.map((h) => [h.slug, h.first_scan_at]));
+  const nya = nyheter(uppsättningar, { källstart, dygn: NYTT_DYGN });
 
   // Recensionerna får falla utan att fälla nyheterna. Saknas tabellen ännu är
   // det inget skäl att dölja att Dramaten satt upp något nytt.

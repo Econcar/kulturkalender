@@ -340,7 +340,11 @@ select
   -- hur färska uppgifterna är. Aggregatet går över samma join som antalet:
   -- vad SQL-vyn och lib/upcoming.mjs räknar ska vara samma sak, annars visar
   -- det lokala läget en annan siffra än drift.
-  max(e.last_seen_at)  as last_scan_at
+  max(e.last_seen_at)  as last_scan_at,
+  -- När skannern såg huset första gången, över alla rader och inte bara de
+  -- kommande. Nyhetsvyn behöver den: det som fanns när vi började bevaka ett
+  -- hus är husets program, inte nyheter.
+  (select min(x.first_seen_at) from public.events x where x.source = v.slug) as first_scan_at
 from public.venues v
 left join public.events e
   on e.source = v.slug
@@ -406,7 +410,9 @@ select
   -- redan spelat är de olika datum, och det är premiären en recension hör till.
   min(premiere_at) as premiere_at,
   min(starts_at)  as first_at,
-  max(starts_at)  as last_at,
+  -- Sluttiden när den finns: en utställning som öppnade i maj och pågår till
+  -- september har en enda rad, och max(starts_at) gav bara öppningsdagen.
+  max(coalesce(ends_at, starts_at)) as last_at,
   min(price_min)  as price_min,
   max(price_max)  as price_max,
   -- Antal rum uppsättningen spelas i. Fler än ett betyder att den turnerar

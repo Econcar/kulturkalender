@@ -148,3 +148,32 @@ test('Nationalmuseum: inte utställningar på andra museer, inte arkivet', () =>
     'https://www.nationalmuseum.se/utställningar/kommande-utställningar/akseli-gallen-kallela',
   ]);
 });
+
+// --- Vad som är nytt --------------------------------------------------------
+
+test('det som fanns när vi började bevaka huset är inte nytt', async () => {
+  const { nyheter } = await import('../lib/upcoming.mjs');
+  const källstart = new Map([['fotografiska', '2026-09-27T09:00:00Z']]);
+  const parr = {
+    venue_slug: 'fotografiska', title: 'Martin Parr',
+    announced_at: '2026-09-27T09:05:00Z', first_at: '2026-05-22T22:00:00Z',
+  };
+  const senare = { ...parr, title: 'Ny utställning', announced_at: '2026-10-05T04:00:00Z', first_at: '2026-11-01T00:00:00Z' };
+  const nu = new Date('2026-10-06T10:00:00Z');
+  assert.deepEqual(nyheter([parr, senare], { källstart, now: nu }).map((p) => p.title), ['Ny utställning']);
+});
+
+test('det som redan hade börjat när vi såg det är inte nytt', async () => {
+  const { nyheter } = await import('../lib/upcoming.mjs');
+  const pågående = {
+    venue_slug: 'x', title: 'Öppnade i maj',
+    announced_at: '2026-10-05T04:00:00Z', first_at: '2026-05-22T22:00:00Z',
+  };
+  assert.equal(nyheter([pågående], { now: new Date('2026-10-06T10:00:00Z') }).length, 0);
+});
+
+test('en utställnings slutdatum blir uppsättningens sista dag', async () => {
+  const { upcomingProductions } = await import('../lib/upcoming.mjs');
+  const [p] = upcomingProductions([{ ...UTSTÄLLNING, url: 'https://x', venue_slug: 'fotografiska' }]);
+  assert.equal(p.last_at, UTSTÄLLNING.ends_at);
+});
