@@ -71,6 +71,7 @@ const el = {
   views: document.getElementById('views'),
   venues: document.getElementById('venues'),
   venuelist: document.getElementById('venuelist'),
+  venueshead: document.getElementById('venueshead'),
   status: document.getElementById('status'),
   results: document.getElementById('results'),
   more: document.getElementById('more'),
@@ -192,13 +193,33 @@ function ritaFärskhet() {
     .sort()
     .at(-1);
 
-  el.freshness.textContent = [today(), senast ? fetched(senast) : ''].filter(Boolean).join(' · ');
+  // Den lokala servern läser data/events.json, som bara fylls av npm run
+  // scan:local - nattskanningen skriver till databasen, inte till filen. Utan
+  // markeringen ser en fyra dagar gammal lokal kopia ut som en trasig skanner.
+  const lokalt = ['localhost', '127.0.0.1'].includes(location.hostname) ? 'lokal kopia' : '';
+
+  el.freshness.textContent = [today(), senast ? fetched(senast) : '', lokalt].filter(Boolean).join(' · ');
 
   // Skannern går varje natt. Två dygn utan ny hämtning är inte en fördröjning
   // utan något som har gått sönder, och då ska raden sluta se lugn ut.
   if (senast && daysSince(senast) >= 2) el.freshness.dataset.tone = 'warn';
   else delete el.freshness.dataset.tone;
 }
+
+/**
+ * Husen, grupperade och hopfällda.
+ *
+ * Med fyra hus var en rad knappar rätt. Med 26 blev den en vägg på telefonen
+ * som man fick skrolla förbi för att komma till programmet. Nu står husen i
+ * grupper under en rubrik som är stängd från början; är ett hus valt står det
+ * i rubriken, så att filtret syns också när listan är hopfälld.
+ */
+const GRUPPER = [
+  ['teater', 'Teater'],
+  ['musik', 'Musik'],
+  ['opera', 'Opera & dans'],
+  ['konst', 'Konst'],
+];
 
 function ritaScener() {
   if (!scener.length) {
@@ -207,35 +228,63 @@ function ritaScener() {
   }
   el.venues.hidden = false;
 
-  const frag = document.createDocumentFragment();
-  for (const hus of scener) {
-    const knapp = document.createElement('button');
-    knapp.type = 'button';
-    knapp.className = 'venue';
-    knapp.setAttribute('aria-pressed', String(state.venue === hus.slug));
-
-    const namn = document.createElement('span');
-    namn.className = 'venuename';
-    namn.textContent = hus.name;
-    knapp.append(namn);
-
-    const antal = document.createElement('span');
-    antal.className = 'venuecount';
-    // Noll skrivs ut. Ett hus vars adapter gått sönder ska synas som tomt och
-    // inte försvinna ur listan – ett tyst bortfall är svårare att upptäcka.
-    antal.textContent = hus.upcoming_count === 0 ? 'inget just nu' : `${hus.upcoming_count}`;
-    knapp.append(antal);
-
-    knapp.addEventListener('click', () => {
-      state.venue = state.venue === hus.slug ? '' : hus.slug;
-      state.offset = 0;
-      skrivUrl();
-      ritaScener();
-      hämta({ ersätt: true });
-    });
-    frag.append(knapp);
+  const vald = scener.find((h) => h.slug === state.venue);
+  el.venueshead.replaceChildren(`Scener vi bevakar · ${scener.length}`);
+  if (vald) {
+    const markering = document.createElement('span');
+    markering.className = 'venuechosen';
+    markering.textContent = vald.name;
+    el.venueshead.append(' · ', markering);
   }
-  el.venuelist.replaceChildren(frag);
+
+  const grupper = document.createDocumentFragment();
+  const kända = new Set(GRUPPER.map(([typ]) => typ));
+  for (const [typ, rubrik] of [...GRUPPER, ['', 'Övriga']]) {
+    const hus = scener
+      .filter((h) => (typ ? h.typ === typ : !kända.has(h.typ)))
+      .sort((a, b) => a.name.localeCompare(b.name, 'sv'));
+    if (!hus.length) continue;
+
+    const grupp = document.createElement('div');
+    grupp.className = 'venuegroup';
+    const h = document.createElement('h3');
+    h.className = 'venuegrouphead';
+    h.textContent = rubrik;
+    const lista = document.createElement('div');
+    lista.className = 'venuelist';
+    lista.append(...hus.map(husknapp));
+    grupp.append(h, lista);
+    grupper.append(grupp);
+  }
+  el.venuelist.replaceChildren(grupper);
+}
+
+function husknapp(hus) {
+  const knapp = document.createElement('button');
+  knapp.type = 'button';
+  knapp.className = 'venue';
+  knapp.setAttribute('aria-pressed', String(state.venue === hus.slug));
+
+  const namn = document.createElement('span');
+  namn.className = 'venuename';
+  namn.textContent = hus.name;
+  knapp.append(namn);
+
+  const antal = document.createElement('span');
+  antal.className = 'venuecount';
+  // Noll skrivs ut. Ett hus vars adapter gått sönder ska synas som tomt och
+  // inte försvinna ur listan – ett tyst bortfall är svårare att upptäcka.
+  antal.textContent = hus.upcoming_count === 0 ? 'inget just nu' : `${hus.upcoming_count}`;
+  knapp.append(antal);
+
+  knapp.addEventListener('click', () => {
+    state.venue = state.venue === hus.slug ? '' : hus.slug;
+    state.offset = 0;
+    skrivUrl();
+    ritaScener();
+    hämta({ ersätt: true });
+  });
+  return knapp;
 }
 
 async function hämta({ ersätt, tyst = false } = {}) {

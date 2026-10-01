@@ -36,6 +36,11 @@ main { max-width: 46rem; margin: 0 auto; }
   padding: 1.5rem 0 1rem;
 }
 .topbar h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.02em; }
+
+/* Versionen står högst upp, så att det syns direkt om sidan är den senast
+   utrullade eller en kopia ur cachen - inte först efter en skrollning. */
+.titelrad { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.version { font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tagline { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.9rem; }
 
 /* Dagens datum och hur färska uppgifterna är. Gul när skannern har tystnat:
@@ -67,10 +72,23 @@ main { max-width: 46rem; margin: 0 auto; }
 
 .venueshead {
   margin: 0 0 0.5rem;
+  cursor: pointer;
+  list-style-position: inside;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  color: var(--muted);
+}
+
+.venueshead:hover { color: var(--text); }
+.venuechosen { color: var(--accent); text-transform: none; letter-spacing: 0; }
+
+.venuegroup { margin: 0 0 0.75rem; }
+.venuegrouphead {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--muted);
 }
 

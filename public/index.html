@@ -13,7 +13,10 @@
 </head>
 <body>
 <header class="topbar">
-  <h1>Kulturkalendern</h1>
+  <div class="titelrad">
+    <h1>Kulturkalendern</h1>
+    <span class="version" id="meta"></span>
+  </div>
   <p class="tagline">Vad som händer på Stockholms scener.</p>
   <p class="freshness" id="freshness"></p>
 
@@ -29,10 +32,10 @@
 </header>
 
 <main>
-  <section class="venues" id="venues" hidden>
-    <h2 class="venueshead">Scener vi bevakar</h2>
-    <div class="venuelist" id="venuelist" role="group" aria-label="Filtrera på scen"></div>
-  </section>
+  <details class="venues" id="venues" hidden>
+    <summary class="venueshead" id="venueshead">Scener vi bevakar</summary>
+    <div class="venuegroups" id="venuelist" role="group" aria-label="Filtrera på scen"></div>
+  </details>
 
   <div class="chips views" id="views" role="group" aria-label="Välj vy"></div>
 
@@ -57,7 +60,6 @@
     är uppgifter de själva publicerar; beskrivningarna är förkortade utdrag.
     Klicka vidare till arrangören för hela texten och för biljetter.
   </p>
-  <span id="meta"></span>
 </footer>
 
 <script type="module" src="/app.js"></script>

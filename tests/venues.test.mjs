@@ -76,3 +76,19 @@ test('okänd slug ger null, inte ett kastat fel', () => {
   assert.equal(venueBySlug('finns-inte'), null);
   assert.equal(venueBySlug(undefined), null);
 });
+
+test('varje hus har en grupp som förstasidan känner till', () => {
+  // Ett hus utan känd grupp hamnar under "Övriga" - inte fel, men ett tecken
+  // på att det lagts till utan att någon tänkt på var det hör hemma.
+  for (const hus of VENUES) {
+    assert.ok(['teater', 'musik', 'opera', 'konst'].includes(hus.typ), `${hus.slug} saknar grupp`);
+  }
+  // Raden i insert-satsen, från slugen till radens slutparentes.
+  const sql = läs('db/schema.sql');
+  for (const hus of VENUES) {
+    const start = sql.indexOf(`('${hus.slug}',`);
+    assert.ok(start >= 0, `${hus.slug} saknas i db/schema.sql`);
+    const rad = sql.slice(start, sql.indexOf(')', start) + 1);
+    assert.ok(rad.endsWith(`'${hus.typ}')`), `${hus.slug} har en annan grupp i db/schema.sql: ${rad}`);
+  }
+});

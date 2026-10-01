@@ -103,6 +103,30 @@ export function createClient({ url, serviceKey, dryRun = false } = {}) {
     },
 
     /**
+     * Antalet rader källan gav senast den hittade något, eller null.
+     *
+     * Grunden för tapplarmet i run.mjs. Läses ur driftloggen, som redan har
+     * rows_found per körning. Också en körning som larmade räknas: krymper ett
+     * hus på riktigt - säsongen tar slut - larmar det en natt och nästa natt är
+     * den nya nivån utgångsläget. Jämfördes det med senaste gröna körningen
+     * hade larmet ljudit varje natt för alltid.
+     *
+     * Ett fel här får aldrig stoppa skanningen - utan jämförelse larmar det
+     * bara inte.
+     */
+    async förraAntal(source) {
+      if (isDryRun) return null;
+      try {
+        const [rad] = await request(
+          `scan_runs?select=rows_found&source=eq.${encodeURIComponent(source)}&status=neq.running&rows_found=gt.0&order=started_at.desc&limit=1`,
+        ) ?? [];
+        return rad?.rows_found ?? null;
+      } catch {
+        return null;
+      }
+    },
+
+    /**
      * Startar en rad i scan_runs och returnerar en avslutare.
      *
      * Misslyckas skrivningen fortsätter skanningen ändå. Driftloggen är en

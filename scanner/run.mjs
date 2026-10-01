@@ -95,8 +95,24 @@ async function sammanfattning(results) {
   }
 }
 
+/**
+ * Larmtext när en källa gav mindre än hälften av förra körningen, annars null.
+ *
+ * Den vanligaste formen av trasig adapter kastar inget och ger inte noll: en
+ * sajt lägger om en av sina listor, och Dramaten går från 390 rader till 12.
+ * Fel och noll larmade redan; det här gjorde det inte. Under 20 rader förra
+ * gången larmar det aldrig - ett hus med sex konserter som får tre är en
+ * vanlig vecka, inte ett formatbyte.
+ */
+export function tappade(förra, nu) {
+  if (!(förra >= 20) || !(nu < förra * 0.5)) return null;
+  return `gav ${nu} rader mot ${förra} förra gången - formatet kan ha ändrats`;
+}
+
 async function runSource(source, db) {
   log(`\n▶ ${source.label ?? source.id}`);
+  // Före startRun, som själv skriver en rad i driftloggen.
+  const förra = (await db.förraAntal?.(source.id)) ?? null;
   const finish = await db.startRun(source.id);
   const result = { source: source.id, status: 'ok', rows_found: 0, rows_upserted: 0, error: null };
 
@@ -116,6 +132,15 @@ async function runSource(source, db) {
       result.status = source.kanVaraTom ? 'ok' : 'empty';
     } else {
       result.rows_upserted = await db.upsertEvents(rows);
+    }
+
+    const tapp = tappade(förra, raw.length);
+    if (tapp) {
+      // Raderna är redan skrivna - det som hittades är fortfarande rätt, det
+      // är det som saknas som är frågan. Men körningen blir röd.
+      result.status = 'error';
+      result.error = tapp;
+      log(`  LARM: ${tapp}`);
     }
   } catch (err) {
     result.status = 'error';

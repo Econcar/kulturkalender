@@ -193,6 +193,11 @@ alter table public.reviews add column if not exists category text;
 create index if not exists reviews_production_idx on public.reviews (production_key);
 create index if not exists reviews_published_idx on public.reviews (published_at desc);
 
+-- Husets sort, för grupperingen på förstasidan: teater, musik, opera (opera och
+-- dans) eller konst. Med 26 hus blev en enda rad knappar en vägg på telefonen.
+-- Kolumnen läggs före insert-satsen nedan, som fyller den.
+alter table public.venues add column if not exists typ text;
+
 -- ---------------------------------------------------------------------------
 -- Husen
 -- ---------------------------------------------------------------------------
@@ -207,61 +212,62 @@ create index if not exists reviews_published_idx on public.reviews (published_at
 --
 -- on conflict do update, inte do nothing: rättar man ett namn här ska det slå
 -- igenom vid nästa körning av skriptet i stället för att tyst ignoreras.
-insert into public.venues (slug, name, url, address, lat, lng) values
+insert into public.venues (slug, name, url, address, lat, lng, typ) values
   ('kulturhuset', 'Kulturhuset Stadsteatern', 'https://kulturhusetstadsteatern.se',
-   'Sergels torg, 111 57 Stockholm', 59.331700, 18.063700),
+   'Sergels torg, 111 57 Stockholm', 59.331700, 18.063700, 'teater'),
   ('dramaten',    'Dramaten', 'https://www.dramaten.se',
-   'Nybroplan, 111 47 Stockholm', 59.331900, 18.077600),
+   'Nybroplan, 111 47 Stockholm', 59.331900, 18.077600, 'teater'),
   ('konserthuset', 'Konserthuset Stockholm', 'https://www.konserthuset.se',
-   'Hötorget 8, 111 57 Stockholm', 59.334500, 18.063200),
+   'Hötorget 8, 111 57 Stockholm', 59.334500, 18.063200, 'musik'),
   ('operan',      'Kungliga Operan', 'https://www.operan.se',
-   'Gustav Adolfs torg 2, 111 52 Stockholm', 59.329700, 18.070700),
+   'Gustav Adolfs torg 2, 111 52 Stockholm', 59.329700, 18.070700, 'opera'),
   ('sodrateatern', 'Södra Teatern', 'https://sodrateatern.com',
-   'Mosebacke torg 1–3, 116 46 Stockholm', 59.318500, 18.074600),
+   'Mosebacke torg 1–3, 116 46 Stockholm', 59.318500, 18.074600, 'musik'),
   ('folkoperan',  'Folkoperan', 'https://folkoperan.se',
-   'Hornsgatan 72, 118 21 Stockholm', 59.317300, 18.058200),
+   'Hornsgatan 72, 118 21 Stockholm', 59.317300, 18.058200, 'opera'),
   ('chinateatern', 'China Teatern', 'https://www.chinateatern.se',
-   'Berzelii park 9, 111 47 Stockholm', 59.332500, 18.073500),
+   'Berzelii park 9, 111 47 Stockholm', 59.332500, 18.073500, 'teater'),
   ('oscarsteatern', 'Oscarsteatern', 'https://www.oscarsteatern.se',
-   'Kungsgatan 63, 111 22 Stockholm', 59.334500, 18.056000),
+   'Kungsgatan 63, 111 22 Stockholm', 59.334500, 18.056000, 'teater'),
   ('intiman',     'Intiman', 'https://www.intiman.se',
-   'Odengatan 81, 113 22 Stockholm', 59.343200, 18.049000),
+   'Odengatan 81, 113 22 Stockholm', 59.343200, 18.049000, 'teater'),
   ('gotalejon',   'Göta Lejon', 'https://www.gotalejon.se',
-   'Götgatan 55, 116 21 Stockholm', 59.313000, 18.073500),
+   'Götgatan 55, 116 21 Stockholm', 59.313000, 18.073500, 'musik'),
   ('giljotin',    'Teater Giljotin', 'https://www.teatergiljotin.se',
-   'Torsgatan 41, 113 62 Stockholm', 59.344000, 18.038000),
+   'Torsgatan 41, 113 62 Stockholm', 59.344000, 18.038000, 'teater'),
   ('strindbergs', 'Strindbergs Intima Teater', 'https://www.strindbergsintimateater.se',
-   'Barnhusgatan 20, 111 23 Stockholm', 59.336000, 18.056000),
+   'Barnhusgatan 20, 111 23 Stockholm', 59.336000, 18.056000, 'teater'),
   ('liljevalchs', 'Liljevalchs konsthall', 'https://liljevalchs.se',
-   'Djurgårdsvägen 60, 115 21 Stockholm', 59.326100, 18.099500),
+   'Djurgårdsvägen 60, 115 21 Stockholm', 59.326100, 18.099500, 'konst'),
   ('modernamuseet', 'Moderna Museet', 'https://www.modernamuseet.se',
-   'Exercisplan 4, 111 49 Stockholm', 59.326000, 18.084300),
+   'Exercisplan 4, 111 49 Stockholm', 59.326000, 18.084300, 'konst'),
   ('fotografiska', 'Fotografiska', 'https://stockholm.fotografiska.com',
-   'Stadsgårdshamnen 22, 116 45 Stockholm', 59.317700, 18.085600),
+   'Stadsgårdshamnen 22, 116 45 Stockholm', 59.317700, 18.085600, 'konst'),
   ('nationalmuseum', 'Nationalmuseum', 'https://www.nationalmuseum.se',
-   'Södra Blasieholmshamnen 2, 111 48 Stockholm', 59.329000, 18.078100),
+   'Södra Blasieholmshamnen 2, 111 48 Stockholm', 59.329000, 18.078100, 'konst'),
   ('nalen', 'Nalen', 'https://www.nalen.com',
-   'Regeringsgatan 74, 111 39 Stockholm', 59.337800, 18.068900),
+   'Regeringsgatan 74, 111 39 Stockholm', 59.337800, 18.068900, 'musik'),
   ('aviciiarena', 'Avicii Arena', 'https://aviciiarena.se',
-   'Globentorget 2, 121 77 Johanneshov', 59.293600, 18.083300),
+   'Globentorget 2, 121 77 Johanneshov', 59.293600, 18.083300, 'musik'),
   ('annexet', 'Annexet', 'https://annexet.se',
-   'Globentorget 2, 121 77 Johanneshov', 59.292900, 18.080300),
+   'Globentorget 2, 121 77 Johanneshov', 59.292900, 18.080300, 'musik'),
   ('hovet', 'Hovet', 'https://hovetarena.se',
-   'Globentorget 2, 121 77 Johanneshov', 59.294300, 18.079700),
+   'Globentorget 2, 121 77 Johanneshov', 59.294300, 18.079700, 'musik'),
   ('treaarena', '3Arena', 'https://3arena.se',
-   'Arenaslingan 14, 121 77 Johanneshov', 59.290200, 18.084400),
+   'Arenaslingan 14, 121 77 Johanneshov', 59.290200, 18.084400, 'musik'),
   ('strawberryarena', 'Strawberry Arena', 'https://strawberryarena.se',
-   'Råsta strandväg 1, 169 79 Solna', 59.372700, 17.999700),
+   'Råsta strandväg 1, 169 79 Solna', 59.372700, 17.999700, 'musik'),
   ('berwaldhallen', 'Berwaldhallen', 'https://www.berwaldhallen.se',
-   'Dag Hammarskjölds väg 3, 115 27 Stockholm', 59.333100, 18.097700),
+   'Dag Hammarskjölds väg 3, 115 27 Stockholm', 59.333100, 18.097700, 'musik'),
   ('fasching', 'Fasching', 'https://www.fasching.se',
-   'Kungsgatan 63, 111 22 Stockholm', 59.334500, 18.056200),
+   'Kungsgatan 63, 111 22 Stockholm', 59.334500, 18.056200, 'musik'),
   ('debaser', 'Debaser', 'https://www.debaser.se',
-   'Hornstulls strand 4, 117 39 Stockholm', 59.315400, 18.034100),
+   'Hornstulls strand 4, 117 39 Stockholm', 59.315400, 18.034100, 'musik'),
   ('dansenshus', 'Dansens Hus', 'https://dansenshus.se',
-   'Barnhusgatan 12–14, 111 23 Stockholm', 59.335500, 18.055500)
+   'Barnhusgatan 12–14, 111 23 Stockholm', 59.335500, 18.055500, 'opera')
 on conflict (slug) do update
   set name = excluded.name,
+      typ = excluded.typ,
       url = excluded.url,
       address = excluded.address,
       lat = excluded.lat,
@@ -354,6 +360,7 @@ select
   v.slug,
   v.name,
   v.url,
+  v.typ,
   count(e.id)::integer as upcoming_count,
   min(e.starts_at)     as next_at,
   -- När skannern senast såg huset. Driver raden högst upp på sidan, som säger
@@ -371,7 +378,7 @@ left join public.events e
  and (e.starts_at >= now() - interval '3 hours'
       or (e.ends_at >= now() and e.last_seen_at >= now() - interval '7 days'))
  and e.status <> 'cancelled'
-group by v.slug, v.name, v.url;
+group by v.slug, v.name, v.url, v.typ;
 
 -- Uppsättningarna, en rad per pjäs eller konsert i stället för en per kväll.
 --

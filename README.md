@@ -181,6 +181,9 @@ får innehålla `/rest/v1/`.
 - [x] Musik: Nalen, Avicii Arena, Annexet, Hovet, 3Arena, Strawberry Arena,
       Berwaldhallen, Fasching och Debaser (2026-09-27). Cirkus spärrar robotar
 - [x] Dansens Hus (2026-09-27): WordPress-posttypen dh_event, en rad per kväll
+- [x] Scenlistan grupperad (Teater, Musik, Opera & dans, Konst) och hopfälld
+- [x] Tapplarm: en källa som ger under hälften av förra natten (från minst 20)
+      gör körningen röd, en natt
 - [ ] Fas 5: dubbletter mellan källor – `groupDuplicates` finns, används inte
 - [ ] Utred Fotografiska, Moderna Museet, Stockholm Live och Debaser.
       Bara deras listsidor har testats, vilket inte säger något

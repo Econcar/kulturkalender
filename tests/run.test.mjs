@@ -58,3 +58,22 @@ test('när allt går bra är körningen grön', async (t) => {
 
   assert.equal(process.exitCode, 0);
 });
+
+test('en källa som tappar mer än hälften gör körningen röd, men skrivs ändå', async (t) => {
+  // Dramaten från 390 till 12: inget kastas, inget är noll, men något är fel.
+  t.after(() => { process.exitCode = 0; });
+  const db = { ...räknare(), förraAntal: async () => 390 };
+  const resultat = await runScan({ client: db, sources: [källa('dramaten', async () => EN_RAD)] });
+  assert.equal(process.exitCode, 1);
+  assert.equal(resultat.sources[0].status, 'error');
+  assert.match(resultat.sources[0].error, /390/);
+  assert.equal(db.skrivna.length, 1);
+});
+
+test('tapplarmet: bara över 20 rader förra gången, och bara under hälften', async () => {
+  const { tappade } = await import('../scanner/run.mjs');
+  assert.ok(tappade(390, 12));
+  assert.equal(tappade(390, 300), null, 'en vanlig minskning larmade');
+  assert.equal(tappade(6, 2), null, 'ett litet hus larmade');
+  assert.equal(tappade(null, 2), null, 'larmade utan jämförelse');
+});
