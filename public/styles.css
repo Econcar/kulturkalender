@@ -95,7 +95,26 @@ main { max-width: 46rem; margin: 0 auto; }
 }
 
 .venueshead:hover { color: var(--text); }
-.venuechosen { color: var(--accent); text-transform: none; letter-spacing: 0; }
+.venuechosen {
+  font: inherit;
+  color: var(--accent);
+  text-transform: none;
+  letter-spacing: 0;
+  background: none;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  cursor: pointer;
+}
+.linkbutton {
+  font: inherit;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
 
 .venuegroup { margin: 0 0 0.75rem; }
 .venuegrouphead {

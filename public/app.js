@@ -231,9 +231,22 @@ function ritaScener() {
   const vald = scener.find((h) => h.slug === state.venue);
   el.venueshead.replaceChildren(`Scener vi bevakar · ${scener.length}`);
   if (vald) {
-    const markering = document.createElement('span');
+    // En knapp och inte bara text: ett valt hus följer med när man byter vy,
+    // och med listan hopfälld var det lätt att inte se att filtret var på -
+    // "inga recensioner" när det bara var Hovet som inte hade några.
+    const markering = document.createElement('button');
+    markering.type = 'button';
     markering.className = 'venuechosen';
-    markering.textContent = vald.name;
+    markering.textContent = `${vald.name} ✕`;
+    markering.setAttribute('aria-label', `Ta bort filtret ${vald.name}`);
+    markering.addEventListener('click', (e) => {
+      e.preventDefault(); // annars fälls listan ut eller ihop
+      state.venue = '';
+      state.offset = 0;
+      skrivUrl();
+      ritaScener();
+      hämta({ ersätt: true });
+    });
     el.venueshead.append(' · ', markering);
   }
 
@@ -309,6 +322,7 @@ async function hämta({ ersätt, tyst = false } = {}) {
         : state.category || state.venue
           ? 'Ingen recension matchar filtret.'
           : 'Inga recensioner ännu.', laddade.length ? 'ok' : 'warn');
+      if (!laddade.length) visaAllaKnapp();
       return;
     }
 
@@ -321,6 +335,7 @@ async function hämta({ ersätt, tyst = false } = {}) {
         : state.category || state.venue
           ? `Inget nytt som matchar filtret de senaste ${nyheter.days} dagarna.`
           : `Inget nytt de senaste ${nyheter.days} dagarna.`, laddade.length ? 'ok' : 'warn');
+      if (!laddade.length) visaAllaKnapp();
       return;
     }
 
@@ -341,6 +356,7 @@ async function hämta({ ersätt, tyst = false } = {}) {
       sätt(state.q || state.category || state.venue || state.period
         ? 'Inget matchade filtret.'
         : 'Inga evenemang inlagda ännu. Skannern har inte körts.', 'warn');
+      visaAllaKnapp();
     } else {
       sätt(`${laddade.length} ${state.view === 'repertoar' ? 'uppsättningar' : 'evenemang'}`, 'ok');
     }
@@ -793,6 +809,28 @@ function skrivUrl() {
   if (state.view) p.set('vy', state.view);
   const fråga = p.toString();
   history.replaceState(null, '', fråga ? `?${fråga}` : location.pathname);
+}
+
+/**
+ * "Visa alla" efter ett tomt resultat, när något filter är på. Nollar
+ * scen, kategori, period och sökning på en gång.
+ */
+function visaAllaKnapp() {
+  if (!(state.venue || state.category || state.period || state.q)) return;
+  const knapp = document.createElement('button');
+  knapp.type = 'button';
+  knapp.className = 'linkbutton';
+  knapp.textContent = 'Visa alla';
+  knapp.addEventListener('click', () => {
+    Object.assign(state, { venue: '', category: '', period: '', q: '', offset: 0 });
+    el.search.value = '';
+    skrivUrl();
+    ritaScener();
+    ritaFilter();
+    ritaDatum();
+    hämta({ ersätt: true });
+  });
+  el.status.append(' ', knapp);
 }
 
 function sätt(text, ton) {
