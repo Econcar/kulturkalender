@@ -21,7 +21,7 @@ import { dirname } from 'node:path';
 import { fetchText, isAllowedByRobots, sleep } from '../../lib/http.mjs';
 import { FLÖDEN } from '../../lib/feeds.mjs';
 import { parseFeed } from '../../lib/rss.mjs';
-import { matchReview, parseReviewUrl, reviewRow } from '../../lib/review-match.mjs';
+import { matchReview, matchReviewText, parseReviewUrl, reviewRow } from '../../lib/review-match.mjs';
 import { upcomingEvents, upcomingProductions } from '../../lib/upcoming.mjs';
 import { createClient } from '../lib/supabase.mjs';
 
@@ -58,23 +58,34 @@ async function main() {
     await sleep(1000);
   }
 
+  // Recensioner enligt adressen. De andra posterna prövas mot texten - DN och
+  // Expressen säger aldrig "recension" i adressen.
   const recensioner = poster.filter((p) => parseReviewUrl(p.url).isReview);
+  const övriga = poster.filter((p) => !parseReviewUrl(p.url).isReview);
   const matchade = [];
   const omatchade = [];
 
+  const matcha = (r, träff) => {
+    const p = uppsättningar.find((u) => u.production_key === träff.production_key);
+    matchade.push({
+      ...r,
+      match: träff,
+      production: { title: p?.title, venue: p?.venue },
+      row: reviewRow(r, träff, p),
+    });
+  };
+
+  // Texten prövas också på de övriga posterna. De räknas inte som omatchade
+  // när de inte träffar - de flesta är inte recensioner alls.
+  for (const r of övriga) {
+    const träff = matchReviewText(r, uppsättningar);
+    if (träff) matcha(r, träff);
+  }
+
   for (const r of recensioner) {
-    const träff = matchReview(r, uppsättningar);
-    if (träff) {
-      const p = uppsättningar.find((u) => u.production_key === träff.production_key);
-      matchade.push({
-        ...r,
-        match: träff,
-        production: { title: p?.title, venue: p?.venue },
-        row: reviewRow(r, träff, p),
-      });
-    } else {
-      omatchade.push(r);
-    }
+    const träff = matchReview(r, uppsättningar) ?? matchReviewText(r, uppsättningar);
+    if (träff) matcha(r, träff);
+    else omatchade.push(r);
   }
 
   rapport({ poster, recensioner, matchade, omatchade });

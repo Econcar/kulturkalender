@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { applyFilters, nyheter, upcomingEvents, upcomingProductions, venueSummary } from '../lib/upcoming.mjs';
 import { FLÖDEN } from '../lib/feeds.mjs';
 import { parseFeed } from '../lib/rss.mjs';
-import { matchReview, parseReviewUrl, reviewForPage, reviewRow } from '../lib/review-match.mjs';
+import { matchReview, matchReviewText, parseReviewUrl, reviewForPage, reviewRow } from '../lib/review-match.mjs';
 
 const rot = fileURLToPath(new URL('..', import.meta.url));
 const PUBLIC = join(rot, 'public');
@@ -33,6 +33,8 @@ const TYPER = {
   '.json': 'application/json; charset=utf-8',
   '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
 };
@@ -110,8 +112,9 @@ async function recensionsrader(uppsättningar) {
       const svar = await fetch(adress);
       if (!svar.ok) continue;
       for (const post of parseFeed(await svar.text())) {
-        if (!parseReviewUrl(post.url).isReview) continue;
-        const träff = matchReview(post, uppsättningar);
+        // Adressen först, texten sedan - som insamlingen i drift.
+        const träff = (parseReviewUrl(post.url).isReview && matchReview(post, uppsättningar))
+          || matchReviewText(post, uppsättningar);
         if (!träff) continue;
         const p = uppsättningar.find((u) => u.production_key === träff.production_key);
         rader.push(reviewRow({ ...post, publisher: publicist }, träff, p));

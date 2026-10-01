@@ -13,12 +13,22 @@
 </head>
 <body>
 <header class="topbar">
-  <div class="titelrad">
-    <h1>Kulturkalendern</h1>
-    <span class="version" id="meta"></span>
+  <div class="topp">
+    <div class="topptext">
+      <div class="titelrad">
+        <h1>Kulturkalendern</h1>
+        <span class="version" id="meta"></span>
+      </div>
+      <p class="tagline">Vad som händer på Stockholms scener.</p>
+      <p class="freshness" id="freshness"></p>
+    </div>
+    <img class="toppbild"
+         src="/img/skribent-240.jpg"
+         srcset="/img/skribent-240.jpg 240w, /img/skribent-480.jpg 480w"
+         sizes="(min-width: 560px) 180px, 28vw"
+         width="240" height="240"
+         alt="Akvarell: en leende kvinna med runda glasögon och mönstrad kofta vid ett skrivbord, med bokhyllor och ett fönster mot en gammal stadsgata.">
   </div>
-  <p class="tagline">Vad som händer på Stockholms scener.</p>
-  <p class="freshness" id="freshness"></p>
 
   <!-- Driftkontroller. Döljs för besökare av public/drift.js; den riktiga
        spärren sitter i functions/api/scan.js, som kräver nyckeln. -->

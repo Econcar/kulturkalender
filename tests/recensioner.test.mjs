@@ -96,3 +96,56 @@ test('recensionerna upsertas på url, utan first_seen_at', async (t) => {
   assert.ok(!('first_seen_at' in anrop.body[0]));
   assert.ok(anrop.body[0].last_seen_at);
 });
+
+// --- Matchning ur texten ----------------------------------------------------
+
+const ANTIKRIST = {
+  production_key: 'dramaten|https://www.dramaten.se/repertoar/antikrist/',
+  title: 'Antikrist', venue: 'Dramaten', venue_slug: 'dramaten',
+  premiere_at: '2026-09-25T17:00:00Z', first_at: '2026-10-02T17:00:00Z', last_at: '2026-12-01T19:00:00Z',
+};
+
+test('Expressens recension hittas ur ingressen när adressen inte säger något', async () => {
+  const { matchReview, matchReviewText } = await import('../lib/review-match.mjs');
+  const post = {
+    url: 'https://www.expressen.se/kultur/sexet-och-sorgen--tappar-sin-svarta/',
+    title: 'Sexet och sorgen tappar sin svärta',
+    description: 'Lars von Triers ”Antikrist” blir smart och välspelad teater på Dramaten.',
+    published: 'Mon, 28 Sep 2026 06:00:00 GMT',
+  };
+  assert.equal(matchReview(post, [ANTIKRIST]), null, 'adressregeln borde inte ha träffat');
+  const träff = matchReviewText(post, [ANTIKRIST]);
+  assert.equal(träff?.production_key, ANTIKRIST.production_key);
+  assert.equal(träff.confidence, 'hög');
+});
+
+test('huset i genitiv räknas: "på Dramatens stora scen"', async () => {
+  const { matchReviewText } = await import('../lib/review-match.mjs');
+  const träff = matchReviewText({
+    url: 'https://www.dn.se/kultur/x/', title: 'Kaos på Dramatens stora scen',
+    description: 'När ”Antikrist” blir teater.', published: '2026-09-29T08:00:00Z',
+  }, [ANTIKRIST]);
+  assert.ok(träff);
+});
+
+test('en nyhet före premiären är inte en recension', async () => {
+  const { matchReviewText } = await import('../lib/review-match.mjs');
+  assert.equal(matchReviewText({
+    url: 'https://www.dn.se/kultur/y/', title: 'Dramaten sätter upp Antikrist i höst',
+    description: '', published: '2026-08-15T08:00:00Z',
+  }, [ANTIKRIST]), null);
+});
+
+test('samma titel på en annan scen matchar inte', async () => {
+  const { matchReviewText } = await import('../lib/review-match.mjs');
+  assert.equal(matchReviewText({
+    url: 'https://www.svd.se/a/z/', title: 'Antikrist på Malmö stadsteater', description: '',
+    published: '2026-09-29T08:00:00Z',
+  }, [ANTIKRIST]), null);
+});
+
+test('spårningskoder tas bort, artikelnumret står kvar', async () => {
+  const { utanSpårning } = await import('../lib/review-match.mjs');
+  assert.equal(utanSpårning('https://kulturbloggen.com/?p=209401'), 'https://kulturbloggen.com/?p=209401');
+  assert.equal(utanSpårning('https://www.aftonbladet.se/a/b?utm_medium=rss'), 'https://www.aftonbladet.se/a/b');
+});

@@ -30,8 +30,10 @@ test('spårningsparametrar följer inte med adressen', () => {
   assert.ok(!första.url.includes('?'));
   assert.equal(
     rensaSpårning('https://x.se/a/b?utm_medium=rss&x=1'),
-    'https://x.se/a/b',
+    'https://x.se/a/b?x=1',
   );
+  // Artikelnumret är adressen, inte spårning.
+  assert.equal(rensaSpårning('https://kulturbloggen.com/?p=209260'), 'https://kulturbloggen.com/?p=209260');
   assert.equal(rensaSpårning('https://x.se/a/b'), 'https://x.se/a/b');
 });
 
