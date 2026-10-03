@@ -16,7 +16,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { applyFilters, nyheter, upcomingEvents, upcomingProductions, venueSummary } from '../lib/upcoming.mjs';
+import { applyFilters, nyheter, passeradeUppsättningar, upcomingEvents, upcomingProductions, venueSummary } from '../lib/upcoming.mjs';
 import { FLÖDEN } from '../lib/feeds.mjs';
 import { parseFeed } from '../lib/rss.mjs';
 import { matchReview, matchReviewText, parseReviewUrl, reviewForPage, reviewRow } from '../lib/review-match.mjs';
@@ -103,8 +103,16 @@ async function reviews(res) {
  */
 let recensionscache = { tid: 0, rader: [] };
 
-async function recensionsrader(uppsättningar) {
+async function recensionsrader(kommande) {
   if (Date.now() - recensionscache.tid < 30 * 60_000) return recensionscache.rader;
+
+  // Också det som spelats nyss, som insamlingen i drift: en konsert
+  // recenseras dagen efter.
+  const sedda = new Set(kommande.map((p) => p.production_key));
+  const uppsättningar = [
+    ...kommande,
+    ...passeradeUppsättningar(await läsData()).filter((p) => !sedda.has(p.production_key)),
+  ];
 
   const rader = [];
   for (const [publicist, adress] of FLÖDEN) {

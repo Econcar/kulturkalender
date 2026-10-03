@@ -62,6 +62,12 @@
 //   'debaser'        – startsidans länkar och evenemangssidornas faktaruta.
 // Cirkus visar en säkerhetskontroll för robotar (Vercel) och läses inte.
 //   'dansenshus'     – WordPress-posttypen dh_event, en rad per show_datetime.
+//
+// Mer konst, 2026-10-03.
+//   konsthallar.mjs  – Bonniers Konsthall och Artipelag: en lista och ett
+//                      datumspann i klartext per utställning.
+//   'konstakademien' – EventON, ld+json Event per evenemang.
+// Magasin III valdes bort: senaste utställningen i deras API är från 2022.
 
 import kulturhuset from './kulturhuset.mjs';
 import dramaten from './dramaten.mjs';
@@ -82,12 +88,15 @@ import berwaldhallen from './berwaldhallen.mjs';
 import fasching from './fasching.mjs';
 import debaser from './debaser.mjs';
 import dansenshus from './dansenshus.mjs';
+import konsthallar from './konsthallar.mjs';
+import konstakademien from './konstakademien.mjs';
 
 const sources = [
   kulturhuset, dramaten, konserthuset, operan, sodrateatern, folkoperan,
   ...showtic, gotalejon, ...nortic,
   liljevalchs, modernamuseet, fotografiska, nationalmuseum,
   nalen, ...stockholmlive, berwaldhallen, fasching, debaser, dansenshus,
+  ...konsthallar, konstakademien,
 ];
 
 export default sources;

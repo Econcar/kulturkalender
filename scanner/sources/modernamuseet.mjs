@@ -20,6 +20,10 @@ import { clean } from '../../lib/text.mjs';
 const BAS = 'https://www.modernamuseet.se';
 const API = `${BAS}/wp-json/wp/v2/exhibition`;
 const FÄLT = 'id,link,title,acf,lang,location,yoast_head_json';
+// Programmet - samtal, visningar, workshops - är en egen posttyp, där varje
+// tillfälle står i meta._event_schedules: { start: "2026-10-04T15:00:00", end }.
+const PROGRAM = `${BAS}/wp-json/wp/v2/event`;
+const PROGRAMFÄLT = 'id,link,title,lang,location,meta,yoast_head_json';
 const STOCKHOLM = 12;
 
 export default {
@@ -41,9 +45,66 @@ export default {
       await paus(1000);
     }
     log(`  ${ut.length} aktuella och kommande utställningar i Stockholm`);
+
+    // Programmet får falla utan att utställningarna gör det.
+    try {
+      const program = [];
+      for (let sida = 1; sida <= 3; sida += 1) {
+        await paus(1000);
+        const poster = JSON.parse(await hämta(`${PROGRAM}?per_page=100&page=${sida}&orderby=date&order=desc&_fields=${PROGRAMFÄLT}`));
+        const rader = poster.flatMap((p) => programRader(p, now));
+        program.push(...rader);
+        if (!poster.length || !rader.length) break;
+      }
+      log(`  ${program.length} kommande programpunkter`);
+      ut.push(...program);
+    } catch (err) {
+      log(`  programmet gick inte att hämta: ${err.message}`);
+    }
     return ut;
   },
 };
+
+/** En programpost till en rad per kommande tillfälle i Stockholm. */
+export function programRader(p, now = new Date()) {
+  if (p?.lang !== 'sv' || !(p.location ?? []).includes(STOCKHOLM)) return [];
+  const title = clean(p.title?.rendered);
+  if (!title || !p.link) return [];
+
+  return (p.meta?._event_schedules ?? [])
+    .map((s) => ({ starts_at: parseDateTime(s?.start), ends_at: parseDateTime(s?.end) }))
+    .filter((t) => t.starts_at && new Date(t.starts_at) >= new Date(now.getTime() - 3 * 3600_000))
+    .map(({ starts_at, ends_at }) => ({
+      url: p.link,
+      title,
+      description: clean(p.yoast_head_json?.og_description) ?? null,
+      image_url: p.yoast_head_json?.og_image?.[0]?.url ?? null,
+      category: programkategori(title),
+      genre: null,
+      venue_raw: null,
+      address: null,
+      starts_at,
+      ends_at: ends_at && ends_at >= starts_at ? ends_at : null,
+      premiere_at: null,
+      price_min: null,
+      price_max: null,
+      currency: 'SEK',
+      ticket_url: null,
+      status: 'scheduled',
+      organizer: 'Moderna Museet',
+      raw: { id: p.id },
+      external_id: `program/${p.id}/${starts_at.slice(0, 16).replace(/[-:T]/g, '')}`,
+    }));
+}
+
+/** Kategori ur titeln: samtal och visningar, barn, film. Annars övrigt. */
+export function programkategori(titel) {
+  if (/barn|familj|krån|bebis|baby/i.test(titel)) return 'barn';
+  if (/film|bio/i.test(titel)) return 'film';
+  if (/konsert/i.test(titel)) return 'konsert';
+  if (/samtal|föreläsning|seminarium|curatorvisning|visning/i.test(titel)) return 'föreläsning';
+  return 'övrigt';
+}
 
 /** En post till en rad, eller null om den inte är en aktuell Stockholmsutställning. */
 export function toRow(p, now = new Date()) {

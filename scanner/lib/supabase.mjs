@@ -103,6 +103,17 @@ export function createClient({ url, serviceKey, dryRun = false } = {}) {
     },
 
     /**
+     * Evenemangen som spelats de senaste dygnen, i tabellform. För
+     * recensionsmatchningen - se passeradeUppsättningar i lib/upcoming.mjs.
+     */
+    async passerade(dygn = 14) {
+      const från = new Date(Date.now() - dygn * 86_400_000).toISOString();
+      const nu = new Date().toISOString();
+      const fält = 'source,external_id,url,title,category,starts_at,ends_at,premiere_at,status,first_seen_at,last_seen_at,venue_raw';
+      return (await request(`events?select=${fält}&starts_at=gte.${från}&starts_at=lt.${nu}&limit=5000`)) ?? [];
+    },
+
+    /**
      * Antalet rader källan gav senast den hittade något, eller null.
      *
      * Grunden för tapplarmet i run.mjs. Läses ur driftloggen, som redan har

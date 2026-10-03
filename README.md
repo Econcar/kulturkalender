@@ -124,7 +124,7 @@ Skannern (GitHub → Settings → Secrets and variables → **Actions**):
    Misslyckas något höjs ett fel, och då står det rött i stället.
 
    Kontrollera sedan att husen finns: `select slug, name from public.venues
-   order by slug;` ska ge tjugosex rader.
+   order by slug;` ska ge tjugonio rader.
 
    **Därefter behövs SQL-editorn inte.** Jobbet
    [schema.yml](.github/workflows/schema.yml) kör båda filerna och kräver att
@@ -184,6 +184,9 @@ får innehålla `/rest/v1/`.
 - [x] Scenlistan grupperad (Teater, Musik, Opera & dans, Konst) och hopfälld
 - [x] Tapplarm: en källa som ger under hälften av förra natten (från minst 20)
       gör körningen röd, en natt
+- [x] Bonniers Konsthall, Artipelag, Konstakademien, och Moderna Museets
+      program (2026-10-03). Magasin III har inget program i Stockholm
+- [x] Konsertrecensioner: matchas mot det som spelats de senaste två veckorna
 - [ ] Fas 5: dubbletter mellan källor – `groupDuplicates` finns, används inte
 - [ ] Utred Fotografiska, Moderna Museet, Stockholm Live och Debaser.
       Bara deras listsidor har testats, vilket inte säger något

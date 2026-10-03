@@ -22,7 +22,7 @@ import { fetchText, isAllowedByRobots, sleep } from '../../lib/http.mjs';
 import { FLÖDEN } from '../../lib/feeds.mjs';
 import { parseFeed } from '../../lib/rss.mjs';
 import { matchReview, matchReviewText, parseReviewUrl, reviewRow } from '../../lib/review-match.mjs';
-import { upcomingEvents, upcomingProductions } from '../../lib/upcoming.mjs';
+import { passeradeUppsättningar, upcomingEvents, upcomingProductions } from '../../lib/upcoming.mjs';
 import { createClient } from '../lib/supabase.mjs';
 
 
@@ -35,8 +35,13 @@ async function main() {
   const lokalt = process.argv.includes('--local');
   const ut = utPath() ?? UT;
 
-  const uppsättningar = lokalt ? await lokalaUppsättningar() : await hämtaUppsättningar();
-  log(`${uppsättningar.length} uppsättningar att matcha mot${lokalt ? ' (lokalt)' : ''}.`);
+  const kommande = lokalt ? await lokalaUppsättningar() : await hämtaUppsättningar();
+  const passerade = await passeradeFrån(lokalt);
+  // De kommande först, så att en uppsättning som både spelats och spelas
+  // matchas mot sin aktuella rad.
+  const sedda = new Set(kommande.map((p) => p.production_key));
+  const uppsättningar = [...kommande, ...passerade.filter((p) => !sedda.has(p.production_key))];
+  log(`${kommande.length} kommande och ${uppsättningar.length - kommande.length} nyss spelade uppsättningar att matcha mot${lokalt ? ' (lokalt)' : ''}.`);
   if (!uppsättningar.length) {
     throw new Error('inga uppsättningar - utan dem säger en matchning ingenting');
   }
@@ -156,6 +161,22 @@ async function hämtaUppsättningar() {
     await sleep(500);
   }
   return alla;
+}
+
+/**
+ * Det som spelats de senaste två veckorna, för konsertrecensionerna. I drift
+ * ur databasen - det publika API:et bär bara det kommande - och lokalt ur
+ * skannerfilen. Utan nycklar blir det en tom lista, inte ett fel.
+ */
+async function passeradeFrån(lokalt) {
+  try {
+    if (lokalt) return passeradeUppsättningar(JSON.parse(await readFile('data/events.json', 'utf8')));
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return [];
+    return passeradeUppsättningar(await createClient().passerade(14));
+  } catch (err) {
+    log(`  passerade uppsättningar gick inte att läsa: ${err.message}`);
+    return [];
+  }
 }
 
 /** Uppsättningarna ur den lokala skannerutdatan. Kräver npm run scan:local. */
