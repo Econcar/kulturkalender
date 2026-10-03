@@ -21,7 +21,7 @@ import { dirname } from 'node:path';
 import { fetchText, isAllowedByRobots, sleep } from '../../lib/http.mjs';
 import { FLÖDEN } from '../../lib/feeds.mjs';
 import { parseFeed } from '../../lib/rss.mjs';
-import { matchReview, matchReviewText, parseReviewUrl, reviewRow } from '../../lib/review-match.mjs';
+import { matchFilmReview, matchReview, matchReviewText, parseReviewUrl, reviewRow } from '../../lib/review-match.mjs';
 import { passeradeUppsättningar, upcomingEvents, upcomingProductions } from '../../lib/upcoming.mjs';
 import { createClient } from '../lib/supabase.mjs';
 
@@ -75,7 +75,7 @@ async function main() {
     matchade.push({
       ...r,
       match: träff,
-      production: { title: p?.title, venue: p?.venue },
+      production: { title: p?.title ?? träff.production_title, venue: p?.venue ?? (träff.matched_by === 'film' ? 'film' : undefined) },
       row: reviewRow(r, träff, p),
     });
   };
@@ -88,7 +88,9 @@ async function main() {
   }
 
   for (const r of recensioner) {
-    const träff = matchReview(r, uppsättningar) ?? matchReviewText(r, uppsättningar);
+    const träff = matchReview(r, uppsättningar)
+      ?? matchFilmReview(r, uppsättningar)
+      ?? matchReviewText(r, uppsättningar);
     if (träff) matcha(r, träff);
     else omatchade.push(r);
   }

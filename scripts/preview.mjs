@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { applyFilters, nyheter, passeradeUppsättningar, upcomingEvents, upcomingProductions, venueSummary } from '../lib/upcoming.mjs';
 import { FLÖDEN } from '../lib/feeds.mjs';
 import { parseFeed } from '../lib/rss.mjs';
-import { matchReview, matchReviewText, parseReviewUrl, reviewForPage, reviewRow } from '../lib/review-match.mjs';
+import { matchFilmReview, matchReview, matchReviewText, parseReviewUrl, reviewForPage, reviewRow } from '../lib/review-match.mjs';
 
 const rot = fileURLToPath(new URL('..', import.meta.url));
 const PUBLIC = join(rot, 'public');
@@ -121,7 +121,8 @@ async function recensionsrader(kommande) {
       if (!svar.ok) continue;
       for (const post of parseFeed(await svar.text())) {
         // Adressen först, texten sedan - som insamlingen i drift.
-        const träff = (parseReviewUrl(post.url).isReview && matchReview(post, uppsättningar))
+        const träff = (parseReviewUrl(post.url).isReview
+          && (matchReview(post, uppsättningar) ?? matchFilmReview(post, uppsättningar)))
           || matchReviewText(post, uppsättningar);
         if (!träff) continue;
         const p = uppsättningar.find((u) => u.production_key === träff.production_key);

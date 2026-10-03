@@ -273,7 +273,7 @@ export function groupByDay(events, now = new Date()) {
  */
 export function filtreraNytt({ productions = [], reviews = [] } = {}, { venue = '', category = '' } = {}) {
   const passar = (p) => Boolean(p)
-    && (!venue || p.venue_slug === venue)
+    && (!venue || p.venue_slug === venue || (p.venue_slugs ?? []).includes(venue))
     && (!category || p.category === category);
   const filtrerar = Boolean(venue || category);
   return {
@@ -323,10 +323,15 @@ export function productionKey(r) {
 export function recensionerPerUppsättning(reviews = []) {
   const per = new Map();
   for (const r of reviews) {
-    const nyckel = r?.production?.production_key;
-    if (!nyckel || !r.url) continue;
-    if (!per.has(nyckel)) per.set(nyckel, []);
-    per.get(nyckel).push(r);
+    if (!r?.url) continue;
+    // En filmrecension gäller filmen på varje biograf som visar den, och har
+    // därför en lista med nycklar utöver sin egen.
+    const nycklar = new Set([r.production?.production_key, ...(r.production?.production_keys ?? [])]);
+    for (const nyckel of nycklar) {
+      if (!nyckel) continue;
+      if (!per.has(nyckel)) per.set(nyckel, []);
+      per.get(nyckel).push(r);
+    }
   }
   for (const lista of per.values()) {
     lista.sort((a, b) => String(b.published ?? '').localeCompare(String(a.published ?? '')));
