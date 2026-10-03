@@ -69,6 +69,13 @@
 //                      adresser (403 till GitHub) och togs bort samma dag.
 //   'konstakademien' – EventON, ld+json Event per evenemang.
 // Magasin III valdes bort: senaste utställningen i deras API är från 2022.
+//
+// Film, 2026-10-03.
+//   'zita'           – öppet JSON-API, nio dagar framåt med salong och tid.
+//   'biorio'         – ld+json ScreeningEvent per visning på varje filmsida.
+//   'cinemateket'    – programsidans listvy via ShowMore; tiderna ur varje
+//                      visnings kalenderlänk.
+// Capitol har tiderna bara i det renderade gränssnittet (RSC) och väntar.
 
 import kulturhuset from './kulturhuset.mjs';
 import dramaten from './dramaten.mjs';
@@ -91,6 +98,9 @@ import debaser from './debaser.mjs';
 import dansenshus from './dansenshus.mjs';
 import konsthallar from './konsthallar.mjs';
 import konstakademien from './konstakademien.mjs';
+import zita from './zita.mjs';
+import biorio from './biorio.mjs';
+import cinemateket from './cinemateket.mjs';
 
 const sources = [
   kulturhuset, dramaten, konserthuset, operan, sodrateatern, folkoperan,
@@ -98,6 +108,7 @@ const sources = [
   liljevalchs, modernamuseet, fotografiska, nationalmuseum,
   nalen, ...stockholmlive, berwaldhallen, fasching, debaser, dansenshus,
   ...konsthallar, konstakademien,
+  zita, biorio, cinemateket,
 ];
 
 export default sources;

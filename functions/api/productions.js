@@ -19,10 +19,13 @@ export async function onRequestGet({ request, env }) {
 
   const query = new URLSearchParams({
     select: '*',
-    // Premiärdatum är den ordning en repertoar läses i: det som börjar snart
-    // först. Inte antal föreställningar - då hamnar hela höstens program före
-    // det som spelas i morgon.
-    order: 'first_at.asc',
+    // Scen först, sedan det som börjar snart. Repertoaren läses hus för hus -
+    // "vad spelar Dramaten?" - och sidan sätter en rubrik per hus. Sorterat
+    // bara på start blandades husen, och med 30 scener fick samma hus sin
+    // rubrik om och om igen: 77 rubriker på de första 100 uppsättningarna.
+    // Inom huset gäller det som förut: det som börjar snart först, inte
+    // antal föreställningar.
+    order: 'venue.asc,first_at.asc',
     limit: String(clampInt(params.get('limit'), { min: 1, max: 300, fallback: 100 })),
   });
 

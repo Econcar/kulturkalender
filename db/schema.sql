@@ -194,7 +194,7 @@ create index if not exists reviews_production_idx on public.reviews (production_
 create index if not exists reviews_published_idx on public.reviews (published_at desc);
 
 -- Husets sort, för grupperingen på förstasidan: teater, musik, opera (opera och
--- dans) eller konst. Med 26 hus blev en enda rad knappar en vägg på telefonen.
+-- dans), konst eller film. Med 26 hus blev en enda rad knappar en vägg på telefonen.
 -- Kolumnen läggs före insert-satsen nedan, som fyller den.
 alter table public.venues add column if not exists typ text;
 
@@ -268,7 +268,13 @@ insert into public.venues (slug, name, url, address, lat, lng, typ) values
   ('artipelag', 'Artipelag', 'https://artipelag.se',
    'Artipelagstigen 1, 134 40 Gustavsberg', 59.306400, 18.346700, 'konst'),
   ('konstakademien', 'Konstakademien', 'https://konstakademien.se',
-   'Fredsgatan 12, 111 52 Stockholm', 59.330400, 18.064900, 'konst')
+   'Fredsgatan 12, 111 52 Stockholm', 59.330400, 18.064900, 'konst'),
+  ('zita', 'Zita Folkets Bio', 'https://zita.se',
+   'Birger Jarlsgatan 37, 111 45 Stockholm', 59.337800, 18.073200, 'film'),
+  ('biorio', 'Bio Rio', 'https://www.biorio.se',
+   'Hornstulls strand 3, 117 39 Stockholm', 59.315600, 18.033900, 'film'),
+  ('cinemateket', 'Cinemateket', 'https://www.filminstitutet.se/sv/se-och-samtala-om-film/cinemateket-stockholm/',
+   'Filmhuset, Borgvägen 1, 115 53 Stockholm', 59.339883, 18.103671, 'film')
 on conflict (slug) do update
   set name = excluded.name,
       typ = excluded.typ,

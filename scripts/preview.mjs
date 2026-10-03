@@ -153,6 +153,10 @@ async function productions(url, res) {
       .includes(q));
   }
 
+  // Samma ordning som functions/api/productions.js: scen, sedan start.
+  rader = [...rader].sort((a, b) => String(a.venue).localeCompare(String(b.venue), 'sv')
+    || String(a.first_at).localeCompare(String(b.first_at)));
+
   const limit = Number(p.get('limit')) || 100;
   const offset = Number(p.get('offset')) || 0;
   const träffar = rader.slice(offset, offset + limit);

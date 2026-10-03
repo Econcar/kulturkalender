@@ -219,6 +219,7 @@ const GRUPPER = [
   ['musik', 'Musik'],
   ['opera', 'Opera & dans'],
   ['konst', 'Konst'],
+  ['film', 'Film'],
 ];
 
 function ritaScener() {

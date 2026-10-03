@@ -81,7 +81,7 @@ test('varje hus har en grupp som förstasidan känner till', () => {
   // Ett hus utan känd grupp hamnar under "Övriga" - inte fel, men ett tecken
   // på att det lagts till utan att någon tänkt på var det hör hemma.
   for (const hus of VENUES) {
-    assert.ok(['teater', 'musik', 'opera', 'konst'].includes(hus.typ), `${hus.slug} saknar grupp`);
+    assert.ok(['teater', 'musik', 'opera', 'konst', 'film'].includes(hus.typ), `${hus.slug} saknar grupp`);
   }
   // Raden i insert-satsen, från slugen till radens slutparentes.
   const sql = läs('db/schema.sql');

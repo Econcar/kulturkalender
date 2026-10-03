@@ -124,7 +124,7 @@ Skannern (GitHub → Settings → Secrets and variables → **Actions**):
    Misslyckas något höjs ett fel, och då står det rött i stället.
 
    Kontrollera sedan att husen finns: `select slug, name from public.venues
-   order by slug;` ska ge tjugoåtta rader.
+   order by slug;` ska ge trettioen rader.
 
    **Därefter behövs SQL-editorn inte.** Jobbet
    [schema.yml](.github/workflows/schema.yml) kör båda filerna och kräver att
@@ -188,6 +188,8 @@ får innehålla `/rest/v1/`.
       Magasin III har inget program i Stockholm; Bonniers Konsthall spärrar
       GitHubs adresser (403) och läses inte
 - [x] Konsertrecensioner: matchas mot det som spelats de senaste två veckorna
+- [x] Film: Zita Folkets Bio, Bio Rio och Cinemateket (2026-10-03). Capitol
+      väntar - tiderna finns bara i det renderade gränssnittet
 - [ ] Fas 5: dubbletter mellan källor – `groupDuplicates` finns, används inte
 - [ ] Utred Fotografiska, Moderna Museet, Stockholm Live och Debaser.
       Bara deras listsidor har testats, vilket inte säger något
