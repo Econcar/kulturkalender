@@ -328,6 +328,11 @@ main { max-width: 46rem; margin: 0 auto; }
 }
 .ticket:hover,
 .ticket:focus-visible { border-color: var(--accent); }
+button.ticket { font: inherit; font-size: 0.8rem; background: none; cursor: pointer; }
+
+/* Biljetter, kalender och delning på en rad, som bryts på smala skärmar. */
+.kortknappar { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.kortknappar .ticket { margin-top: 0; }
 
 /* Driftkontrollerna. Diskreta med flit: de hör inte till det besökaren kom
    för, och syns bara för den som har nyckeln. */

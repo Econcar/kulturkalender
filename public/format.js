@@ -340,3 +340,107 @@ export function recensionsetikett(r) {
   const dag = Number.isNaN(d.getTime()) ? '' : MEDÅR.format(d);
   return [r?.publisher, dag].filter(Boolean).join(' ');
 }
+
+/**
+ * Evenemanget som kalenderfil (iCalendar), eller null när det inte passar i
+ * en kalender.
+ *
+ * Det som pågår mer än ett dygn - en utställning som öppnade i april och
+ * stänger i november - får ingen fil: en kalenderpost på sju månader hjälper
+ * ingen att komma dit. Saknas sluttid, eller är den orimlig, blir det två
+ * timmar.
+ *
+ * Tiderna skrivs i UTC (…Z), så att kalendern själv räknar om till rätt zon.
+ * Raderna viks vid 75 byte, som formatet kräver; långa beskrivningar bröt
+ * annars importen i Outlook.
+ */
+export function kalenderfil(event, now = new Date()) {
+  const start = new Date(event?.starts_at ?? '');
+  if (!event?.title || Number.isNaN(start.getTime())) return null;
+  const slut = new Date(event.ends_at ?? '');
+  const längd = slut.getTime() - start.getTime();
+  if (längd > 86_400_000) return null;
+  const s = Number.isNaN(längd) || längd <= 0 ? new Date(start.getTime() + 2 * 3600_000) : slut;
+
+  const utc = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  // Omvänt snedstreck, semikolon, komma och radbrytning är syntax i formatet.
+  const text = (v) => String(v ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r?\n/g, '\\n');
+  const plats = [event.venue, event.stage, event.address].filter(Boolean).join(', ');
+  const beskrivning = [
+    event.description ? utdrag(event.description, 300) : null,
+    event.url ? `Mer: ${event.url}` : null,
+    event.ticket_url && event.ticket_url !== event.url ? `Biljetter: ${event.ticket_url}` : null,
+  ].filter(Boolean).join('\n');
+
+  const rader = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Kulturkalendern//SV',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${text(`${event.source ?? 'x'}-${event.external_id ?? event.id ?? event.starts_at}`)}@kulturkalendern`,
+    `DTSTAMP:${utc(now)}`,
+    `DTSTART:${utc(start)}`,
+    `DTEND:${utc(s)}`,
+    `SUMMARY:${text(event.title)}`,
+    plats ? `LOCATION:${text(plats)}` : null,
+    beskrivning ? `DESCRIPTION:${text(beskrivning)}` : null,
+    event.url ? `URL:${event.url}` : null,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].filter(Boolean);
+
+  return `${rader.map(vik).join('\r\n')}\r\n`;
+}
+
+/** En rad vikt vid 75 byte, utan att dela ett tecken på mitten. */
+function vik(rad) {
+  const delar = [];
+  let aktuell = '';
+  let byte = 0;
+  for (const tecken of rad) {
+    const n = new TextEncoder().encode(tecken).length;
+    const gräns = delar.length ? 74 : 75; // fortsättningsraderna börjar med ett mellanslag
+    if (byte + n > gräns) {
+      delar.push(aktuell);
+      aktuell = '';
+      byte = 0;
+    }
+    aktuell += tecken;
+    byte += n;
+  }
+  delar.push(aktuell);
+  return delar.join('\r\n ');
+}
+
+/** Filnamnet för kalenderfilen: "girl-6-2026-10-04.ics". */
+export function kalenderfilnamn(event) {
+  const namn = String(event?.title ?? 'evenemang').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'evenemang';
+  return `${namn}-${dayKey(event?.starts_at) ?? 'datum'}.ics`;
+}
+
+/**
+ * Det som delas: "Girl 6 – Cinemateket, lördag 4 oktober 2026 18:00", och
+ * arrangörens sida som länk. Utställningar och annat som pågår får speltiden
+ * i stället för ett klockslag.
+ */
+export function delning(event, now = new Date()) {
+  const spann = speltid(event, now);
+  // Alltid datumet, aldrig "i morgon": mottagaren läser kanske i övermorgon.
+  const start = new Date(event?.starts_at ?? '');
+  const dag = Number.isNaN(start.getTime()) ? null : DAG.format(start);
+  const när = spann || [dag, time(event?.starts_at)].filter(Boolean).join(' ');
+  const var_ = [event?.venue, event?.stage].filter(Boolean).join(', ');
+  return {
+    title: event?.title ?? '',
+    text: [event?.title, var_ ? `– ${var_}` : null].filter(Boolean).join(' ') + (när ? `, ${när.charAt(0).toLowerCase()}${när.slice(1)}` : ''),
+    url: event?.url || event?.ticket_url || null,
+  };
+}

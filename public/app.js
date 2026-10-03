@@ -5,7 +5,7 @@
 // tillstånd att hålla reda på utöver de filter som står i adressfältet.
 
 import { fetchEvents, fetchNews, fetchProductions, fetchReviews, fetchVenues } from '/api.js';
-import { dateRange, dayHeading, daysSince, fetched, filtreraNytt, groupByDay, price, productionKey, recensionerPerUppsättning, recensionsetikett, runLabel, speltid, time, today, utdrag, venueLabel } from '/format.js';
+import { dateRange, dayHeading, daysSince, delning, fetched, kalenderfil, kalenderfilnamn, filtreraNytt, groupByDay, price, productionKey, recensionerPerUppsättning, recensionsetikett, runLabel, speltid, time, today, utdrag, venueLabel } from '/format.js';
 import { initDrift } from '/drift.js';
 import { VERSION } from '/version.js';
 
@@ -460,6 +460,11 @@ function kort(event) {
     kropp.append(text);
   }
 
+  // Biljetter, kalender och delning på en rad - det man gör när man har
+  // hittat något.
+  const knappar = document.createElement('div');
+  knappar.className = 'kortknappar';
+
   if (event.ticket_url && event.ticket_url !== event.url) {
     const biljett = document.createElement('a');
     biljett.className = 'ticket';
@@ -467,8 +472,14 @@ function kort(event) {
     biljett.textContent = 'Biljetter';
     biljett.rel = 'noopener';
     biljett.target = '_blank';
-    kropp.append(biljett);
+    knappar.append(biljett);
   }
+
+  const ics = event.status === 'cancelled' ? null : kalenderfil(event);
+  if (ics) knappar.append(kalenderknapp(event, ics));
+  knappar.append(delaknapp(event));
+
+  kropp.append(knappar);
 
   if (event.status !== 'scheduled') {
     const flagga = document.createElement('span');
@@ -704,6 +715,25 @@ function uppsättning(p) {
     kropp.append(text);
   }
 
+  // Dela fungerar för hela uppsättningen. Kalendern bara när det finns en
+  // enda kväll att lägga in - vilken av fyra visningar skulle det annars bli?
+  const som = {
+    source: p.source,
+    external_id: p.production_key,
+    title: p.title,
+    venue: p.venue,
+    category: p.category,
+    starts_at: p.first_at,
+    ends_at: p.last_at,
+    url: p.url,
+  };
+  const knappar = document.createElement('div');
+  knappar.className = 'kortknappar';
+  const ics = p.performances === 1 ? kalenderfil(som) : null;
+  if (ics) knappar.append(kalenderknapp(som, ics));
+  knappar.append(delaknapp(som));
+  kropp.append(knappar);
+
   li.append(kropp);
   return li;
 }
@@ -810,6 +840,56 @@ function skrivUrl() {
   if (state.view) p.set('vy', state.view);
   const fråga = p.toString();
   history.replaceState(null, '', fråga ? `?${fråga}` : location.pathname);
+}
+
+/**
+ * "Lägg i kalendern": kalenderfilen som nedladdning. Telefonen öppnar den i
+ * kalendern, datorn sparar den - båda vet vad en .ics är.
+ */
+function kalenderknapp(event, ics) {
+  const knapp = document.createElement('button');
+  knapp.type = 'button';
+  knapp.className = 'ticket';
+  knapp.textContent = 'Lägg i kalendern';
+  knapp.addEventListener('click', () => {
+    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = kalenderfilnamn(event);
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  });
+  return knapp;
+}
+
+/**
+ * "Dela": telefonens delningsmeny när den finns. Annars - de flesta datorer -
+ * kopieras text och länk, och knappen säger det en stund.
+ */
+function delaknapp(event) {
+  const knapp = document.createElement('button');
+  knapp.type = 'button';
+  knapp.className = 'ticket';
+  knapp.textContent = 'Dela';
+  knapp.addEventListener('click', async () => {
+    const { title, text, url } = delning(event);
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url: url ?? undefined });
+        return;
+      }
+      await navigator.clipboard.writeText([text, url].filter(Boolean).join('\n'));
+      knapp.textContent = 'Kopierat';
+    } catch (err) {
+      // Avbruten delning är inget fel. Allt annat: säg det, kort.
+      if (err?.name === 'AbortError') return;
+      knapp.textContent = 'Gick inte att dela';
+    }
+    setTimeout(() => { knapp.textContent = 'Dela'; }, 2500);
+  });
+  return knapp;
 }
 
 /**
