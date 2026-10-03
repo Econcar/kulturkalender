@@ -265,8 +265,6 @@ insert into public.venues (slug, name, url, address, lat, lng, typ) values
    'Hornstulls strand 4, 117 39 Stockholm', 59.315400, 18.034100, 'musik'),
   ('dansenshus', 'Dansens Hus', 'https://dansenshus.se',
    'Barnhusgatan 12–14, 111 23 Stockholm', 59.335500, 18.055500, 'opera'),
-  ('bonnierskonsthall', 'Bonniers Konsthall', 'https://bonnierskonsthall.se',
-   'Torsgatan 19, 113 21 Stockholm', 59.342400, 18.040600, 'konst'),
   ('artipelag', 'Artipelag', 'https://artipelag.se',
    'Artipelagstigen 1, 134 40 Gustavsberg', 59.306400, 18.346700, 'konst'),
   ('konstakademien', 'Konstakademien', 'https://konstakademien.se',
@@ -278,6 +276,12 @@ on conflict (slug) do update
       address = excluded.address,
       lat = excluded.lat,
       lng = excluded.lng;
+
+-- Hus som lagts till och tagits bort igen. Insert-satsen ovan rör bara hus
+-- som finns kvar, så borttagna måste tas bort uttryckligen - annars stod de
+-- kvar på förstasidan med "inget just nu".
+--   bonnierskonsthall: spärrar GitHub Actions adresser (403), 2026-10-03.
+delete from public.venues where slug in ('bonnierskonsthall');
 
 -- ---------------------------------------------------------------------------
 -- Vyer

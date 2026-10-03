@@ -64,8 +64,9 @@
 //   'dansenshus'     – WordPress-posttypen dh_event, en rad per show_datetime.
 //
 // Mer konst, 2026-10-03.
-//   konsthallar.mjs  – Bonniers Konsthall och Artipelag: en lista och ett
-//                      datumspann i klartext per utställning.
+//   konsthallar.mjs  – Artipelag: en lista och ett datumspann i klartext per
+//                      utställning. Bonniers Konsthall spärrar molnets
+//                      adresser (403 till GitHub) och togs bort samma dag.
 //   'konstakademien' – EventON, ld+json Event per evenemang.
 // Magasin III valdes bort: senaste utställningen i deras API är från 2022.
 

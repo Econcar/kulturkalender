@@ -1,4 +1,4 @@
-// Bonniers Konsthall och Artipelag.
+// Artipelag (och Bonniers Konsthall, se nedan).
 //
 // Ingen av dem har maskinläsbar data eller datum i sitt WordPress-API (fälten
 // är tomma utåt), men båda har en lista som länkar till utställningarna och
@@ -7,6 +7,13 @@
 //
 // Magasin III undersöktes samtidigt och valdes bort: senaste utställningen i
 // deras API är från 2022.
+//
+// Bonniers Konsthall byggdes och togs bort samma dag. Sajten svarade
+// hemifrån men 403 till GitHub Actions - den spärrar molnets adresser. Det
+// respekteras; att ta sig förbi en spärr är inte att läsa det en sajt
+// publicerar. Fabriken nedan bär den gärna om spärren hävs:
+//   lista: 'https://bonnierskonsthall.se/utstallningar/'
+//   länk:  /utstallning/<slug>/, datum som "26 aug → 8 nov 2026".
 
 import { fetchText, isAllowedByRobots, sleep } from '../../lib/http.mjs';
 import { utställningsrad } from '../lib/utstallning.mjs';
@@ -47,15 +54,6 @@ export function utställningsadresser(html, länk) {
 }
 
 export default [
-  konsthall({
-    id: 'bonnierskonsthall',
-    label: 'Bonniers Konsthall',
-    lista: 'https://bonnierskonsthall.se/utstallningar/',
-    länk: /href="(https:\/\/bonnierskonsthall\.se\/utstallning\/[a-z0-9-]+\/)"/g,
-    titelSuffix: /\s*[-–|]\s*Bonniers Konsthall$/,
-    // En eller två utställningar åt gången; mellan två kan listan vara tom.
-    kanVaraTom: true,
-  }),
   konsthall({
     id: 'artipelag',
     label: 'Artipelag',
