@@ -1,4 +1,4 @@
-import { fail, json, options, supabaseRest } from './_shared.js';
+import { UPPSÄTTNINGSFÄLT, allaRader, fail, json, options, supabaseRest } from './_shared.js';
 import { reviewForPage } from '../../lib/review-match.mjs';
 
 // Alla sparade recensioner, för korten och för recensionsvyn. Sidan hämtar
@@ -20,7 +20,7 @@ export async function onRequestGet({ env }) {
   try {
     const [rader, uppsättningar] = await Promise.all([
       supabaseRest(env, 'reviews?select=*&order=published_at.desc.nullslast&limit=1000'),
-      supabaseRest(env, 'upcoming_productions?select=production_key,title,venue,venue_slug,category,url&limit=1000'),
+      allaRader(env, `upcoming_productions?${UPPSÄTTNINGSFÄLT}`),
     ]);
     const reviews = rader.map((r) => reviewForPage(r, uppsättningar));
     return json({ generated_at: new Date().toISOString(), count: reviews.length, reviews }, { maxAge: CACHE_SEKUNDER });

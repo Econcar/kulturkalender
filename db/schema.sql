@@ -125,6 +125,8 @@ create index if not exists events_starts_at_idx on public.events (starts_at);
 create index if not exists events_source_starts_idx on public.events (source, starts_at);
 create index if not exists events_category_starts_idx on public.events (category, starts_at);
 create index if not exists events_venue_idx on public.events (venue_id);
+-- För källans senaste hämtning i upcoming_events.
+create index if not exists events_source_seen_idx on public.events (source, last_seen_at);
 
 drop trigger if exists events_touch_updated_at on public.events;
 create trigger events_touch_updated_at
@@ -316,6 +318,8 @@ delete from public.venues where slug in ('bonnierskonsthall');
 -- Utan de här raderna slutade skriptet vara idempotent den dag
 -- uppsättningsvyn tillkom - och det märks först när någon kör om det.
 drop view if exists public.upcoming_productions;
+-- venue_summary bygger också på upcoming_events, sedan 2026-10-03.
+drop view if exists public.venue_summary;
 
 drop view if exists public.upcoming_events;
 create view public.upcoming_events
@@ -352,6 +356,12 @@ select
 from public.events e
 left join public.venues hus on hus.slug = e.source
 left join public.venues rum on rum.id = e.venue_id
+-- När källan senast hämtades, över alla dess rader.
+join (
+  select source, max(last_seen_at) as senast
+  from public.events
+  group by source
+) skannat on skannat.source = e.source
 where (
     e.starts_at >= now() - interval '3 hours'  -- pågående räknas som kommande
     -- Det som har börjat men inte slutat: en utställning som öppnade i april
@@ -360,7 +370,18 @@ where (
     -- sitt slutdatum.
     or (e.ends_at >= now() and e.last_seen_at >= now() - interval '7 days')
   )
-  and e.status <> 'cancelled';
+  and e.status <> 'cancelled'
+  -- Det källan slutat lista. En flyttad föreställning får ett nytt id hos
+  -- scenen, en struken försvinner bara, och båda låg förr kvar tills datumet
+  -- passerat - 8 av 2178 rader den 3 oktober 2026, bland dem en söndagsteater
+  -- Kulturhuset inte listat sedan 16 september. En flytt syntes dessutom två
+  -- gånger, på den gamla tiden och på den nya.
+  --
+  -- Jämfört med källans senaste hämtning och inte med klockan: står skannern
+  -- still, eller går en adapter sönder, ska husets program ligga kvar och
+  -- larmet säga vad som hänt - inte listan tömmas. Två dygns marginal, så att
+  -- en enstaka sida som strular en natt inte tar bort något.
+  and e.last_seen_at >= skannat.senast - interval '2 days';
 
 -- Husen med hur mycket som är på gång. Driver listan högst upp på förstasidan,
 -- så att besökaren ser vilka scener sidan faktiskt bevakar – och därmed också
@@ -389,11 +410,9 @@ select
   -- hus är husets program, inte nyheter.
   (select min(x.first_seen_at) from public.events x where x.source = v.slug) as first_scan_at
 from public.venues v
-left join public.events e
-  on e.source = v.slug
- and (e.starts_at >= now() - interval '3 hours'
-      or (e.ends_at >= now() and e.last_seen_at >= now() - interval '7 days'))
- and e.status <> 'cancelled'
+-- Urvalet är upcoming_events, inte en egen kopia av dess where-sats. Två
+-- kopior av samma regel hade glidit isär första gången den ena ändrades.
+left join public.upcoming_events e on e.source = v.slug
 group by v.slug, v.name, v.url, v.typ;
 
 -- Uppsättningarna, en rad per pjäs eller konsert i stället för en per kväll.

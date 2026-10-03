@@ -225,3 +225,40 @@ test('days_until räknas från nu', () => {
   const ut = upcomingEvents([rad({ starts_at: om(49) })], { now: NU });
   assert.equal(ut[0].days_until, 2);
 });
+
+test('det källan slutat lista döljs, jämfört med källans senaste hämtning', () => {
+  const rader = [
+    rad({ external_id: 'kvar', last_seen_at: om(-1) }),
+    // Flyttad eller struken: inte sedd på fyra dygn medan huset hämtats i går.
+    rad({ external_id: 'borta', last_seen_at: om(-96) }),
+    // En natt som strulade räknas inte - två dygns marginal.
+    rad({ external_id: 'en-natt', last_seen_at: om(-30) }),
+  ];
+  const ids = upcomingEvents(rader, { now: NU }).map((r) => r.external_id);
+  assert.deepEqual(ids.sort(), ['en-natt', 'kvar']);
+});
+
+test('står hela källan still töms inte husets program', () => {
+  // Adaptern trasig i en vecka: ingen rad är nyare än någon annan, och larmet
+  // - inte en tom lista - ska säga vad som hänt.
+  const rader = [
+    rad({ external_id: 'a', last_seen_at: om(-170) }),
+    rad({ external_id: 'b', last_seen_at: om(-170) }),
+  ];
+  assert.equal(upcomingEvents(rader, { now: NU }).length, 2);
+});
+
+test('källorna jämförs var för sig', () => {
+  const rader = [
+    rad({ source: 'dramaten', external_id: 'ny', last_seen_at: om(-1) }),
+    rad({ source: 'kulturhuset', external_id: 'gammal', last_seen_at: om(-100) }),
+  ];
+  assert.equal(upcomingEvents(rader, { now: NU }).length, 2);
+});
+
+test('venue_summary bygger på upcoming_events och upprepar inte dess regel', () => {
+  const sql = läs('db/schema.sql');
+  const vy = /create view public\.venue_summary[\s\S]*?group by/.exec(sql)?.[0] ?? '';
+  assert.match(vy, /left join public\.upcoming_events e/);
+  assert.doesNotMatch(vy, /interval/);
+});

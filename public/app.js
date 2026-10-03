@@ -117,7 +117,9 @@ function init() {
   }, 300));
 
   el.more.addEventListener('click', () => {
-    state.offset += SIDSTORLEK;
+    // Från det som faktiskt står i listan, inte en räknare som kan ha gått
+    // före ett svar som aldrig ritades.
+    state.offset = laddade.length;
     hämta({ ersätt: false });
   });
 
@@ -301,10 +303,26 @@ function husknapp(hus) {
   return knapp;
 }
 
+/**
+ * Numret på den senaste hämtningen.
+ *
+ * Svaren kommer inte i den ordning frågorna ställdes. Den som skrev
+ * "dramaten" snabbt kunde få svaret på "dra" sist, och då stod det Dramaten i
+ * sökrutan och något annat i listan. Bara den senaste hämtningen får rita;
+ * de andra kastar sitt svar.
+ */
+let hämtning = 0;
+
 async function hämta({ ersätt, tyst = false } = {}) {
+  const nr = ++hämtning;
+  const inaktuell = () => nr !== hämtning;
+
   if (!tyst) sätt(ersätt ? 'Hämtar …' : 'Hämtar fler …');
 
   if (ersätt) state.offset = 0;
+  // Ett andra tryck medan den första sidan hämtas hade frågat efter samma
+  // sida en gång till.
+  el.more.disabled = true;
 
   try {
     // Perioden blir ett datumspann först här. state bär valet ("helg"), inte
@@ -316,6 +334,7 @@ async function hämta({ ersätt, tyst = false } = {}) {
 
     if (state.view === 'recensioner') {
       await recensionerKlara;
+      if (inaktuell()) return;
       laddade = ritaRecensioner(allaRecensioner);
       el.more.hidden = true;
       sätt(laddade.length
@@ -329,6 +348,7 @@ async function hämta({ ersätt, tyst = false } = {}) {
 
     if (state.view === 'nytt') {
       const nyheter = await fetchNews();
+      if (inaktuell()) return;
       laddade = ritaNytt(nyheter);
       el.more.hidden = true;
       sätt(laddade.length
@@ -344,9 +364,11 @@ async function hämta({ ersätt, tyst = false } = {}) {
       ? await fetchProductions({ ...state }, { limit: SIDSTORLEK })
       : await fetchEvents({ ...state, from, to }, { limit: SIDSTORLEK });
 
+    await recensionerKlara;
+    if (inaktuell()) return;
+
     const nya = state.view === 'repertoar' ? data.productions : data.events;
     laddade = ersätt ? nya : [...laddade, ...nya];
-    await recensionerKlara;
 
     if (state.view === 'repertoar') ritaRepertoar(laddade);
     else rita(laddade);
@@ -362,12 +384,15 @@ async function hämta({ ersätt, tyst = false } = {}) {
       sätt(`${laddade.length} ${state.view === 'repertoar' ? 'uppsättningar' : 'evenemang'}`, 'ok');
     }
   } catch (err) {
+    if (inaktuell()) return;
     // Service workern serverar ett cachat svar när nätet saknas, så hamnar vi
     // här är det antingen första besöket offline eller ett verkligt serverfel.
     // Att säga "kunde inte hämta" och behålla det som redan står på skärmen är
     // ärligare än att tömma listan.
     sätt(`Kunde inte hämta evenemangen: ${err.message}`, 'error');
     if (!laddade.length) el.results.replaceChildren();
+  } finally {
+    if (!inaktuell()) el.more.disabled = false;
   }
 }
 

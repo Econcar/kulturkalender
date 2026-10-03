@@ -45,6 +45,34 @@ export async function supabaseRest(env, path) {
   return res.json();
 }
 
+/**
+ * Alla rader, sida för sida.
+ *
+ * Supabase lämnar ut högst 1000 rader per fråga oavsett limit, och tystnar
+ * sedan - inget fel, bara en kortare lista. Uppsättningarna var 970 den 3
+ * oktober 2026, och utan bläddring hade recensionerna och Nytt börjat tappa
+ * slumpvisa uppsättningar vid nästa nya scen.
+ *
+ * path måste ha en entydig order, annars kan en rad hamna på två sidor eller
+ * ingen.
+ */
+export async function allaRader(env, path, { sida = 1000, max = 20, hämta = supabaseRest } = {}) {
+  if (!/[?&]order=/.test(path)) throw new Error('allaRader kräver order i frågan');
+  const ut = [];
+  for (let i = 0; i < max; i += 1) {
+    const rader = await hämta(env, `${path}&limit=${sida}&offset=${i * sida}`);
+    ut.push(...rader);
+    if (rader.length < sida) return ut;
+  }
+  throw new Error(`fler än ${max * sida} rader i ${path.split('?')[0]}`);
+}
+
+/**
+ * Uppsättningarnas fält som recensionerna slås upp i - det reviewForPage
+ * läser - med en entydig ordning för allaRader.
+ */
+export const UPPSÄTTNINGSFÄLT = 'select=production_key,title,venue,venue_slug,category,url&order=production_key.asc';
+
 /** Klämmer ett tal till ett intervall, med fallback för skräpinput. */
 export function clampInt(value, { min, max, fallback }) {
   const n = Number.parseInt(value, 10);

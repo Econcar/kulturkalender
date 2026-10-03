@@ -25,7 +25,8 @@ export async function onRequestGet({ request, env }) {
     // rubrik om och om igen: 77 rubriker på de första 100 uppsättningarna.
     // Inom huset gäller det som förut: det som börjar snart först, inte
     // antal föreställningar.
-    order: 'venue.asc,first_at.asc',
+    // production_key sist, för en entydig ordning mellan sidorna - se events.js.
+    order: 'venue.asc,first_at.asc,production_key.asc',
     limit: String(clampInt(params.get('limit'), { min: 1, max: 300, fallback: 100 })),
   });
 

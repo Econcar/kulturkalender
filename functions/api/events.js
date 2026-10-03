@@ -16,7 +16,10 @@ export async function onRequestGet({ request, env }) {
   const query = new URLSearchParams({
     select: '*',
     // En kalender har en självklar ordning. Det finns inget att välja på.
-    order: 'starts_at.asc',
+    // id sist: många visningar börjar samtidigt, och utan en entydig ordning
+    // får Postgres sortera dem olika mellan två sidor - "Visa fler" kunde då
+    // visa en rad två gånger och en annan aldrig.
+    order: 'starts_at.asc,id.asc',
     limit: String(clampInt(params.get('limit'), { min: 1, max: 200, fallback: 60 })),
   });
 

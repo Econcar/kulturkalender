@@ -154,7 +154,7 @@ async function hämtaUppsättningar() {
   const alla = [];
   const steg = 300;
 
-  for (let offset = 0; offset < 2000; offset += steg) {
+  for (let offset = 0; offset < 20_000; offset += steg) {
     const res = await fetchText(`${SIDA}/api/productions?limit=${steg}&offset=${offset}`);
     const data = JSON.parse(res);
     const sida = data.productions ?? [];

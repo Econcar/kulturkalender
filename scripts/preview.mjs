@@ -156,7 +156,8 @@ async function productions(url, res) {
 
   // Samma ordning som functions/api/productions.js: scen, sedan start.
   rader = [...rader].sort((a, b) => String(a.venue).localeCompare(String(b.venue), 'sv')
-    || String(a.first_at).localeCompare(String(b.first_at)));
+    || String(a.first_at).localeCompare(String(b.first_at))
+    || String(a.production_key).localeCompare(String(b.production_key)));
 
   const limit = Number(p.get('limit')) || 100;
   const offset = Number(p.get('offset')) || 0;
