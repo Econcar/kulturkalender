@@ -88,6 +88,9 @@ export default [
   showticKälla({ id: 'chinateatern', label: 'China Teatern', arena: 'china-teatern' }),
   showticKälla({ id: 'oscarsteatern', label: 'Oscarsteatern', arena: 'oscarsteatern' }),
   showticKälla({ id: 'intiman', label: 'Intiman', arena: 'intiman' }),
+  // Dinnershowerna på Blasieholmen. Arenan heter wallmans-stockholm hos
+  // Showtic; 111 föreställningar vid undersökningen 2026-10-04.
+  showticKälla({ id: 'wallmans', label: 'Wallmans', arena: 'wallmans-stockholm' }),
 ];
 
 /** Husets id ur arenasidans __NEXT_DATA__. */

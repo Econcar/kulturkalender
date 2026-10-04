@@ -76,6 +76,15 @@
 //   'cinemateket'    – programsidans listvy via ShowMore; tiderna ur varje
 //                      visnings kalenderlänk.
 // Capitol har tiderna bara i det renderade gränssnittet (RSC) och väntar.
+//
+// Fler teatrar, 2026-10-04.
+//   'wallmans'       – Showtic, i showtic.mjs.
+//   'turteatern'     – The Events Calendars API, som Liljevalchs; kvällarna
+//                      grupperas på uppsättningens sida under /repertoar/.
+//   'galeasen'       – biljettknapparna på varje uppsättningssida, året ur
+//                      premiären. Nortic-länken ledde bara till arrangören.
+// Kulturbiljetter (Tribunalen, Teater Tre, Pero) är nästa. Orionteatern,
+// Playhouse och Riksteatern säljer bara via Tickster; Boulevardteatern svarar 500.
 
 import kulturhuset from './kulturhuset.mjs';
 import dramaten from './dramaten.mjs';
@@ -101,6 +110,8 @@ import konstakademien from './konstakademien.mjs';
 import zita from './zita.mjs';
 import biorio from './biorio.mjs';
 import cinemateket from './cinemateket.mjs';
+import turteatern from './turteatern.mjs';
+import galeasen from './galeasen.mjs';
 
 const sources = [
   kulturhuset, dramaten, konserthuset, operan, sodrateatern, folkoperan,
@@ -109,6 +120,7 @@ const sources = [
   nalen, ...stockholmlive, berwaldhallen, fasching, debaser, dansenshus,
   ...konsthallar, konstakademien,
   zita, biorio, cinemateket,
+  turteatern, galeasen,
 ];
 
 export default sources;

@@ -276,7 +276,13 @@ insert into public.venues (slug, name, url, address, lat, lng, typ) values
   ('biorio', 'Bio Rio', 'https://www.biorio.se',
    'Hornstulls strand 3, 117 39 Stockholm', 59.315600, 18.033900, 'film'),
   ('cinemateket', 'Cinemateket', 'https://www.filminstitutet.se/sv/se-och-samtala-om-film/cinemateket-stockholm/',
-   'Filmhuset, Borgvägen 1, 115 53 Stockholm', 59.339883, 18.103671, 'film')
+   'Filmhuset, Borgvägen 1, 115 53 Stockholm', 59.339883, 18.103671, 'film'),
+  ('wallmans',    'Wallmans', 'https://wallmans.se',
+   'Teatergatan 3, 111 48 Stockholm', 59.332700, 18.074600, 'teater'),
+  ('turteatern',  'Turteatern', 'https://turteatern.se',
+   'Lågskärsvägen 13, 121 55 Johanneshov', 59.284500, 18.114800, 'teater'),
+  ('galeasen',    'Teater Galeasen', 'https://galeasen.se',
+   'Slupskjulsvägen 32, 111 49 Stockholm', 59.325800, 18.085600, 'teater')
 on conflict (slug) do update
   set name = excluded.name,
       typ = excluded.typ,
