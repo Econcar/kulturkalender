@@ -3,8 +3,11 @@
 // `git push` deployar direkt till Cloudflare, så det här är sista kontrollen.
 
 import { spawnSync } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { kollaVersion } from './versionskoll.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
@@ -12,6 +15,7 @@ const steps = [
   { name: 'Syntaxkontroll', run: () => node(['scripts/check-syntax.mjs']) },
   { name: 'Enhetstester', run: () => node(['--test', 'tests/*.test.mjs']) },
   { name: 'Inga läckta hemligheter', run: checkSecrets },
+  { name: 'Versionen höjd om sidan ändrats', run: () => kollaVersion(root) },
 ];
 
 let failures = 0;
@@ -42,15 +46,20 @@ function node(args) {
  * Service-nyckeln får aldrig hamna i det som deployas. Supabase service-JWT:er
  * innehåller rollen i payloaden – vi letar efter den och efter uppenbara
  * nyckelnamn i frontendfiler.
+ *
+ * Alla textfiler i public/, inte en lista: listan hade fyra filer, och
+ * api.js, drift.js och version.js låg utanför den.
  */
 async function checkSecrets() {
-  const files = ['public/app.js', 'public/format.js', 'public/sw.js', 'public/index.html'];
+  const files = (await readdir(join(root, 'public'), { recursive: true }))
+    .map((f) => `public/${f.replace(/\\/g, '/')}`)
+    .filter((f) => /\.(js|mjs|html|css|json|webmanifest|txt)$/.test(f));
   const problems = [];
 
   for (const file of files) {
     let text;
     try {
-      text = await readFile(new URL(file, `file://${root.replace(/\\/g, '/')}`), 'utf8');
+      text = await readFile(join(root, file), 'utf8');
     } catch {
       continue;
     }
