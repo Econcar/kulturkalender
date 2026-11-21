@@ -282,7 +282,19 @@ insert into public.venues (slug, name, url, address, lat, lng, typ) values
   ('turteatern',  'Turteatern', 'https://turteatern.se',
    'Lågskärsvägen 13, 121 55 Johanneshov', 59.284500, 18.114800, 'teater'),
   ('galeasen',    'Teater Galeasen', 'https://galeasen.se',
-   'Slupskjulsvägen 32, 111 49 Stockholm', 59.325800, 18.085600, 'teater')
+   'Slupskjulsvägen 32, 111 49 Stockholm', 59.325800, 18.085600, 'teater'),
+  ('arkdes', 'ArkDes', 'https://arkdes.se',
+   'Exercisplan 4, 111 49 Stockholm', 59.326300, 18.084300, 'konst'),
+  ('svenharrys', 'Sven-Harrys Konstmuseum', 'https://sven-harrys.se',
+   'Eastmansvägen 10, 113 61 Stockholm', 59.342900, 18.043000, 'konst'),
+  ('tenstakonsthall', 'Tensta konsthall', 'https://www.tenstakonsthall.se',
+   'Taxingegränd 10, 163 04 Spånga', 59.394500, 17.902300, 'konst'),
+  ('accelerator', 'Accelerator', 'https://acceleratorsu.art',
+   'Frescativägen 26A, 114 18 Stockholm', 59.365600, 18.056200, 'konst'),
+  ('marabouparken', 'Marabouparken konsthall', 'https://marabouparken.se',
+   'Löfströms allé 8, 172 66 Sundbyberg', 59.362700, 17.967000, 'konst'),
+  ('millesgarden', 'Millesgården', 'https://www.millesgarden.se',
+   'Herserudsvägen 32, 181 50 Lidingö', 59.359300, 18.121400, 'konst')
 on conflict (slug) do update
   set name = excluded.name,
       typ = excluded.typ,

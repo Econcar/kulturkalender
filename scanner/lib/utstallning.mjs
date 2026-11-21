@@ -33,19 +33,74 @@ export function synligText(html) {
  * titelSuffix tas bort ur og:title - husen hänger på sitt eget namn:
  * "De besegrade: Motståndets estetik 2026 - Bonniers Konsthall".
  */
-export function utställningsrad(html, url, { organizer, titelSuffix = null } = {}) {
-  const spann = parseDateRange(synligText(html));
+/**
+ * Utställningens ingress.
+ *
+ * og:description i första hand - men flera hus sätter ingen, och några sätter
+ * sajtens allmänna text på varje sida ("Tensta konsthall är en plats för
+ * samtida konst …"). generisk är de texterna, hämtade ur listsidorna; träffar
+ * beskrivningen någon av dem tas i stället första riktiga stycket i
+ * innehållet. Stycken om nyhetsbrev och kakor räknas inte.
+ */
+export function ingress(html, generisk = new Set()) {
+  const text = String(html ?? '').replace(/<script[\s\S]*?<\/script>/g, ' ');
+  const egen = meta(text, 'og:description') ?? meta(text, 'description');
+  if (egen && !generisk.has(egen)) return egen;
+
+  const kandidater = [
+    ...[...text.matchAll(/<div class="description">([\s\S]*?)<\/div>/g)].map((m) => m[1]),
+    ...[...text.matchAll(/<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/g)].map((m) => m[1]),
+  ];
+  return kandidater
+    .map((k) => clean(k.replace(/<a class="out[\s\S]*$/, '')))
+    .find((s) => s && s.length >= 80 && !/nyhetsbrev|prenumerera|cookie|kakor|©/i.test(s)) ?? null;
+}
+
+/** Sidans egen beskrivning, för att känna igen den när den står på varje sida. */
+export function sajtbeskrivning(html) {
+  return meta(html, 'og:description') ?? meta(html, 'description');
+}
+
+export function utställningsrad(html, url, { organizer, titelSuffix = null, spann: tolka = parseDateRange, generisk } = {}) {
+  const spann = tolka(synligText(html));
   if (!spann) return null;
 
   let title = meta(html, 'og:title') ?? clean(/<h1[^>]*>([\s\S]*?)<\/h1>/.exec(String(html ?? ''))?.[1]);
   if (title && titelSuffix) title = title.replace(titelSuffix, '').trim();
   if (!title) return null;
 
+  return utställning({
+    url,
+    title,
+    description: ingress(html, generisk),
+    image_url: meta(html, 'og:image') ?? förstaBild(html, url),
+    spann,
+    organizer,
+  });
+}
+
+/**
+ * Den första uppladdade bilden i innehållet, för sidor utan og:image.
+ * WordPress lägger uppladdningar under /wp-content/uploads/; loggor och ikoner
+ * ligger i temat och kommer inte med.
+ */
+export function förstaBild(html, url) {
+  const src = /<img[^>]+(?:data-src|src)="([^"]*\/wp-content\/uploads\/[^"]+\.(?:jpe?g|png|webp))"/i.exec(String(html ?? ''))?.[1];
+  if (!src) return null;
+  try {
+    return new URL(src, url).href;
+  } catch {
+    return null;
+  }
+}
+
+/** En rad i tabellens form för en utställning. Delas av sidtolkningen och listtolkningen. */
+export function utställning({ url, title, description = null, image_url = null, spann, organizer }) {
   return {
     url,
     title,
-    description: meta(html, 'og:description') ?? meta(html, 'description') ?? null,
-    image_url: meta(html, 'og:image') ?? null,
+    description,
+    image_url,
     category: 'utställning',
     genre: null,
     venue_raw: null,
