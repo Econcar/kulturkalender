@@ -5,11 +5,16 @@
 // former:
 //
 //   konsthall()      spannet står på varje utställningssida, som läses en i
-//                    taget. Artipelag, Sven-Harrys, ArkDes, Tensta.
+//                    taget. Artipelag, Sven-Harrys, ArkDes, Tensta, Botkyrka,
+//                    Thielska.
 //   listkonsthall()  spannet står bara i listan, inte på sidan den länkar
-//                    till. Accelerator, Marabouparken, Millesgården.
+//                    till. Accelerator, Marabouparken, Millesgården,
+//                    Färgfabriken.
 //
 // Tolkningen av en sida är gemensam: scanner/lib/utstallning.mjs.
+//
+// Konsthall C är en tredje form: sajten byggs i webbläsaren ur Prismic, och
+// Prismics öppna API bär datumen som fält - konsthallC().
 //
 // Artipelag undersöktes 2026-10-03, de övriga 2026-11-21. Bortvalda:
 //   Magasin III          senaste utställningen i deras API är från 2022.
@@ -21,11 +26,13 @@
 //                        datum som "26 aug → 8 nov 2026".
 //   Tekniska museet      utställningarna saknar datum - de flesta är fasta.
 //   Paradox Museum       en fast utställning.
-//   Thielska, Nacka      svarade inte alls 2026-11-21. Värt ett nytt försök.
-// Botkyrka konsthall, Konsthall C och Färgfabriken väntar på en närmare titt.
+//   Nacka konsthall      ingen egen sajt; en kommunsida "Aktuell utställning"
+//                        med datum och namn i löptext ("invigs den 28
+//                        november … pågår till och med 24 januari 2027").
+//                        Utställningens namn står inte i någon rubrik.
 
 import { fetchText, isAllowedByRobots, sleep } from '../../lib/http.mjs';
-import { parseDateRange, spannFrånDelar } from '../../lib/event.mjs';
+import { MÅNADER, parseDateRange, spannFrånDelar } from '../../lib/event.mjs';
 import { clean } from '../../lib/text.mjs';
 import { ingress, sajtbeskrivning, utställning, utställningsrad } from '../lib/utstallning.mjs';
 
@@ -68,7 +75,7 @@ export function konsthall({ id, label, listor, länk, titelSuffix, spann, kanVar
 }
 
 /**
- * En konsthall vars lista bär datumen. kort(html, listans adress) ger
+ * En konsthall vars lista bär datumen. kort(html, listans adress, nu) ger
  * { url, title, image_url, description?, spann } per utställning. Saknar
  * listan ingressen läses utställningssidan för den - men faller sidan bort
  * står raden kvar utan.
@@ -87,7 +94,7 @@ export function listkonsthall({ id, label, listor, kort, kanVaraTom = true }) {
       const generisk = new Set();
       for (const lista of listor) {
         const html = await hämta(lista);
-        for (const k of kort(html, lista)) if (!per.has(k.url)) per.set(k.url, k);
+        for (const k of kort(html, lista, now)) if (!per.has(k.url)) per.set(k.url, k);
         generisk.add(sajtbeskrivning(html));
         await paus(1000);
       }
@@ -218,6 +225,123 @@ export function millesKort(html, bas) {
   }];
 }
 
+/**
+ * Ett spann utan år, "29 augusti" till "22 november", ur en lista över det
+ * som är aktuellt. Slutet är nästa gång den dagen infaller - utom när den
+ * nyss passerat, för listan kan bära det som stängde i förrgår. Starten året
+ * innan om dess månad ligger efter slutets.
+ */
+export function spannUtanÅr(d1, m1, d2, m2, now = new Date()) {
+  const år = now.getUTCFullYear();
+  const nyss = new Date(now.getTime() - 90 * 864e5);
+  const slutår = new Date(Date.UTC(år, m2 - 1, d2, 23)) < nyss ? år + 1 : år;
+  return spannFrånDelar(d1, m1, null, d2, m2, slutår);
+}
+
+/** "29 augusti" till [29, 8], eller null. */
+function dagMånad(text) {
+  const m = /(\d{1,2})\s+([a-zåäö]+)/i.exec(clean(text) ?? '');
+  const mån = m && MÅNADER[m[2].toLowerCase()];
+  return mån ? [Number(m[1]), mån] : null;
+}
+
+/**
+ * Färgfabriken: "På gång" blandar utställningar och aktiviteter; kortets
+ * kategori skiljer dem åt. Datumen saknar år.
+ *   <a href=".../sv/pa-gang/ndidi-dike/"><img data-src="..."></a>
+ *   <span class="small-text projekt-category">utställning</span>
+ *   <h3 class="projekt-title pa-gang">Ndidi Dike</h3>
+ *   <h4 class="projekt-subtitle pa-gang">– Rare Earth Rare Justice</h4>
+ *   <span class="start-date">29 augusti</span><span class='end-date'>22 november</span>
+ */
+export function färgfabrikenKort(html, bas, now = new Date()) {
+  const ut = [];
+  for (const block of String(html ?? '').split('<div class="projekt-post">').slice(1)) {
+    if (clean(/projekt-category">([^<]+)</.exec(block)?.[1])?.toLowerCase() !== 'utställning') continue;
+    const href = /<a href="([^"]+)"/.exec(block)?.[1];
+    const namn = clean(/<h3 class="projekt-title[^"]*">([\s\S]*?)<\/h3>/.exec(block)?.[1]);
+    const under = clean(/<h4 class="projekt-subtitle[^"]*">([\s\S]*?)<\/h4>/.exec(block)?.[1]);
+    const slut = dagMånad(/class=['"]end-date['"]>([^<]+)</.exec(block)?.[1]);
+    const start = dagMånad(/class=['"]start-date['"]>([^<]+)</.exec(block)?.[1]) ?? slut;
+    const spann = slut && spannUtanÅr(...start, ...slut, now);
+    if (!href || !namn || !spann) continue;
+    ut.push({
+      url: new URL(href, bas).href,
+      title: under ? `${namn} ${/^[–-]/.test(under) ? under : `– ${under}`}` : namn,
+      image_url: /<img[^>]+data-src="([^"]+)"/.exec(block)?.[1] ?? null,
+      spann,
+    });
+  }
+  return ut;
+}
+
+// --- Konsthall C ---------------------------------------------------------------
+
+const PRISMIC = 'https://konsthallcse.cdn.prismic.io/api/v2';
+
+/** Text ur ett Prismic-textfält: en lista av block med .text. */
+const prismicText = (fält) => clean((fält ?? []).map((b) => b?.text ?? '').join(' '));
+
+/**
+ * Ett Prismic-dokument av typen activity till en rad, eller null om det inte
+ * är en utställning med båda datumen. Sajten visar det på /program/<uid>.
+ */
+export function konsthallCRad(dok) {
+  const d = dok?.data ?? {};
+  if (d.category?.slug !== 'utstallning' || !d.start_time || !d.end_time || !dok.uid) return null;
+  const titel = prismicText(d.title);
+  if (!titel) return null;
+  const konstnär = prismicText(d.artist);
+
+  // Ingressen, annars första längre stycket i brödtexten som inte är
+  // vernissagens tider.
+  const stycken = (d.body ?? []).flatMap((s) => s?.primary?.rich_text ?? []).map((b) => clean(b?.text)).filter(Boolean);
+  const description = prismicText(d.ingress)
+    ?? stycken.find((s) => s.length >= 80 && !/^(vernissage|öppning)/i.test(s)) ?? null;
+
+  return utställning({
+    url: `https://www.konsthallc.se/program/${dok.uid}`,
+    title: konstnär ? `${titel} – ${konstnär}` : titel,
+    description,
+    image_url: d.featured_image?.url ?? null,
+    spann: { starts_at: new Date(d.start_time).toISOString(), ends_at: new Date(d.end_time).toISOString() },
+    organizer: 'Konsthall C',
+  });
+}
+
+/**
+ * Konsthall C: sajten är en Nuxt-app som läser Prismic i webbläsaren; samma
+ * öppna API läses här. Först den aktuella versionen av innehållet (ref), sedan
+ * allt som slutar efter i dag. Kategorin sorteras i koden i stället för i
+ * frågan, så att ett nytt id på kategorin inte tömmer källan i tysthet.
+ */
+export function konsthallC() {
+  return {
+    id: 'konsthallc',
+    label: 'Konsthall C',
+    enabled: true,
+    kanVaraTom: true,
+
+    async fetchEvents({ log = console.log, hämta = fetchText, paus = sleep, robotsOk = isAllowedByRobots, now = new Date() } = {}) {
+      if (!(await robotsOk(`${PRISMIC}/documents/search`))) throw new Error('robots.txt tillåter inte hämtning');
+
+      const api = JSON.parse(await hämta(PRISMIC));
+      const ref = api.refs?.find((r) => r.isMasterRef)?.ref;
+      if (!ref) throw new Error('Prismic gav ingen aktuell version av innehållet');
+      await paus(500);
+
+      const sök = new URL(`${PRISMIC}/documents/search`);
+      sök.searchParams.set('ref', ref);
+      sök.searchParams.set('lang', 'sv-se');
+      sök.searchParams.set('q', `[[at(document.type,"activity")][date.after(my.activity.end_time,"${now.toISOString().slice(0, 10)}")]]`);
+      sök.searchParams.set('pageSize', '100');
+      const svar = JSON.parse(await hämta(sök.href));
+      log(`  ${svar.results?.length ?? 0} aktiviteter som inte slutat`);
+      return (svar.results ?? []).map(konsthallCRad).filter((r) => r && new Date(r.ends_at) >= now);
+    },
+  };
+}
+
 export default [
   konsthall({
     id: 'artipelag',
@@ -277,4 +401,31 @@ export default [
     ],
     kort: millesKort,
   }),
+  konsthall({
+    id: 'botkyrkakonsthall',
+    label: 'Botkyrka konsthall',
+    // "Just nu" i listan. Startsidan länkar också workshops, som inte är
+    // utställningar men kan ha ett spann - därför bara listan.
+    listor: ['https://www.botkyrkakonsthall.se/utstallningar/'],
+    länk: /href="(https:\/\/www\.botkyrkakonsthall\.se\/evenemang\/[a-z0-9-]+\/)"/g,
+    titelSuffix: /\s*[-–|]\s*Botkyrka konsthall$/,
+    kanVaraTom: true,
+  }),
+  konsthall({
+    id: 'thielska',
+    label: 'Thielska Galleriet',
+    listor: [
+      'https://www.thielskagalleriet.se/utstallningar/aktuella-utstallningar/',
+      'https://www.thielskagalleriet.se/utstallningar/kommande-utstallningar/',
+    ],
+    länk: /href="(https:\/\/www\.thielskagalleriet\.se\/utstallning\/[a-z0-9-]+\/)"/g,
+    titelSuffix: /\s*[-–|]\s*Thielska Galleriet$/,
+  }),
+  listkonsthall({
+    id: 'fargfabriken',
+    label: 'Färgfabriken',
+    listor: ['https://fargfabriken.se/sv/pa-gang/'],
+    kort: färgfabrikenKort,
+  }),
+  konsthallC(),
 ];

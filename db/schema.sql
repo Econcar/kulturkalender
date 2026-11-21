@@ -294,7 +294,15 @@ insert into public.venues (slug, name, url, address, lat, lng, typ) values
   ('marabouparken', 'Marabouparken konsthall', 'https://marabouparken.se',
    'Löfströms allé 8, 172 66 Sundbyberg', 59.362700, 17.967000, 'konst'),
   ('millesgarden', 'Millesgården', 'https://www.millesgarden.se',
-   'Herserudsvägen 32, 181 50 Lidingö', 59.359300, 18.121400, 'konst')
+   'Herserudsvägen 32, 181 50 Lidingö', 59.359300, 18.121400, 'konst'),
+  ('botkyrkakonsthall', 'Botkyrka konsthall', 'https://www.botkyrkakonsthall.se',
+   'Fittja Torg 14, 145 51 Norsborg', 59.247000, 17.861000, 'konst'),
+  ('thielska', 'Thielska Galleriet', 'https://www.thielskagalleriet.se',
+   'Sjötullsbacken 8, 115 25 Stockholm', 59.323300, 18.143300, 'konst'),
+  ('fargfabriken', 'Färgfabriken', 'https://fargfabriken.se',
+   'Lövholmsbrinken 1, 117 65 Stockholm', 59.310600, 18.025600, 'konst'),
+  ('konsthallc', 'Konsthall C', 'https://www.konsthallc.se',
+   'Cigarrvägen 14, 123 57 Farsta', 59.256000, 18.083000, 'konst')
 on conflict (slug) do update
   set name = excluded.name,
       typ = excluded.typ,

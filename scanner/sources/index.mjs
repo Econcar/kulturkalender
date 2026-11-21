@@ -84,7 +84,9 @@
 //   'galeasen'       – biljettknapparna på varje uppsättningssida, året ur
 //                      premiären. Nortic-länken ledde bara till arrangören.
 // Fler konsthallar, 2026-11-21, i konsthallar.mjs: ArkDes, Sven-Harrys,
-// Tensta konsthall, Accelerator, Marabouparken och Millesgården.
+// Tensta konsthall, Accelerator, Marabouparken och Millesgården. Samma dag
+// Botkyrka konsthall, Thielska Galleriet, Färgfabriken och Konsthall C
+// (Prismics API). Nacka konsthall har ingen sida som går att läsa.
 //
 // Kulturbiljetter (Tribunalen, Teater Tre, Pero) är nästa. Orionteatern,
 // Playhouse och Riksteatern säljer bara via Tickster; Boulevardteatern svarar 500.

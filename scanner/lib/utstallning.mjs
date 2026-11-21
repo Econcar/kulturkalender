@@ -40,12 +40,19 @@ export function synligText(html) {
  * sajtens allmänna text på varje sida ("Tensta konsthall är en plats för
  * samtida konst …"). generisk är de texterna, hämtade ur listsidorna; träffar
  * beskrivningen någon av dem tas i stället första riktiga stycket i
- * innehållet. Stycken om nyhetsbrev och kakor räknas inte.
+ * innehållet. Stycken om nyhetsbrev och kakor räknas inte, och inte heller
+ * en kort rad som bär datumspannet - Botkyrka konsthall inleder med
+ * "SVEN XET ERIXSON, LIV – DÖD – LIV 21 november 2026–6 mars 2027".
+ *
+ * En platshållare är ingen ingress: Thielska sätter "Mer information kommer
+ * inom kort." på kommande utställningar.
  */
+const PLATSHÅLLARE = /^(mer )?information (kommer|följer)|^kommer (snart|inom kort)|^mer info/i;
+
 export function ingress(html, generisk = new Set()) {
   const text = String(html ?? '').replace(/<script[\s\S]*?<\/script>/g, ' ');
   const egen = meta(text, 'og:description') ?? meta(text, 'description');
-  if (egen && !generisk.has(egen)) return egen;
+  if (egen && !generisk.has(egen) && !PLATSHÅLLARE.test(egen)) return egen;
 
   const kandidater = [
     ...[...text.matchAll(/<div class="description">([\s\S]*?)<\/div>/g)].map((m) => m[1]),
@@ -53,7 +60,8 @@ export function ingress(html, generisk = new Set()) {
   ];
   return kandidater
     .map((k) => clean(k.replace(/<a class="out[\s\S]*$/, '')))
-    .find((s) => s && s.length >= 80 && !/nyhetsbrev|prenumerera|cookie|kakor|©/i.test(s)) ?? null;
+    .find((s) => s && s.length >= 80 && !/nyhetsbrev|prenumerera|cookie|kakor|©/i.test(s)
+      && !(s.length < 160 && parseDateRange(s))) ?? null;
 }
 
 /** Sidans egen beskrivning, för att känna igen den när den står på varje sida. */
